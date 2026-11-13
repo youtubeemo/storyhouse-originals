@@ -1,0 +1,36 @@
+# =====================================================================
+#  VERBINDLICHE BUDGETKONTROLLE – STORYHOUSE ORIGINALS
+#  Änderungen an dieser Datei nur per Pull Request mit Review.
+# =====================================================================
+
+# Hauptschalter. Solange false, verweigert die Pipeline JEDEN
+# kostenpflichtigen API-Aufruf – unabhängig von Workflow-Eingaben.
+# Erst nach ausdrücklicher Freigabe durch die Produktion per PR auf true setzen.
+paid_rendering_enabled: false
+
+currency: EUR
+
+# Absolute Obergrenze über die gesamte Produktion (alle Läufe zusammen).
+total_budget_eur: 200.00
+
+# Obergrenze pro einzelnem Workflow-Lauf.
+max_per_run_eur: 25.00
+
+# Sicherheitsaufschlag auf jede Kostenschätzung (0.25 = +25 %).
+safety_margin: 0.25
+
+# Konservativer Wechselkurs: Runway rechnet in USD-Credits (1 Credit = 0.01 USD).
+# 1.00 überschätzt die Kosten bewusst (realer Kurs liegt darunter).
+eur_per_usd: 1.00
+
+# Warnschwelle (Anteil des Gesamtbudgets), ab der der Workflow laut warnt.
+warn_at_fraction: 0.75
+
+# Ledger (Kostenbuch). Wird im Workflow auf einem eigenen Branch gespeichert,
+# damit jeder Lauf den Stand aller vorherigen Läufe kennt.
+ledger_branch: budget-ledger
+ledger_file: ledger.json
+
+# Bestätigungsphrase, die für einen kostenpflichtigen Lauf im Workflow
+# exakt eingegeben werden muss.
+approval_phrase: "ICH GEBE DIESEN RENDER FREI"

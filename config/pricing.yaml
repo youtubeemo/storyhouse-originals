@@ -1,0 +1,49 @@
+# =====================================================================
+#  Runway API – Preisannahmen für die Kostenschätzung
+#  1 Credit = 0.01 USD.
+#  Stand der Recherche: November 2026. VOR DEM ERSTEN BEZAHLTEN RENDER
+#  gegen https://docs.dev.runwayml.com prüfen und ggf. anpassen.
+#  Unbekannte Werte sind bewusst konservativ (eher zu hoch) angesetzt.
+# =====================================================================
+
+usd_per_credit: 0.01
+
+api:
+  base_url: https://api.dev.runwayml.com
+  version_header: "2024-11-06"
+
+video:            # Credits pro Sekunde generiertem Video
+  gen4.5: 12
+  gen4_turbo: 5
+  veo3.1_fast: 15
+  veo3.1: 40
+
+image:            # Credits pro Bild
+  gen4_image: 8          # 1080p
+  gen4_image_turbo: 2
+
+tts:              # Credits pro Zeichen (konservativ) + Mindestpreis je Aufruf
+  eleven_v3:
+    credits_per_char: 0.05
+    min_credits: 2
+  eleven_multilingual_v2:
+    credits_per_char: 0.02
+    min_credits: 1
+
+sound_effect:     # Credits pro Aufruf (konservativ)
+  eleven_text_to_sound_v2: 3
+
+# Profile: welche Modelle für welchen Zweck
+profiles:
+  test:                     # günstiger Testlauf
+    reference_image_model: gen4_image          # turbo benötigt Referenzbilder
+    keyframe_model: gen4_image_turbo
+    video_model: gen4_turbo
+    tts_model: eleven_v3
+    sfx_model: eleven_text_to_sound_v2
+  final:                    # Endproduktion
+    reference_image_model: gen4_image
+    keyframe_model: gen4_image
+    video_model: gen4.5
+    tts_model: eleven_v3
+    sfx_model: eleven_text_to_sound_v2

@@ -1,0 +1,11 @@
+[project]
+name = "storyhouse"
+version = "0.1.0"
+description = "STORYHOUSE ORIGINALS – KI-Kurzfilm-Pipeline (Runway API + FFmpeg) mit verbindlicher Budgetkontrolle"
+requires-python = ">=3.10"
+dependencies = ["PyYAML>=6.0"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+markers = ["ffmpeg: benötigt ffmpeg/ffprobe (wird sonst übersprungen)"]
