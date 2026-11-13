@@ -22,7 +22,7 @@ jobs:
       - name: Abhängigkeiten
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq ffmpeg fonts-dejavu-core >/dev/null
+          sudo apt-get install -y -qq ffmpeg fonts-dejavu-core openssl >/dev/null
           pip install -q -r requirements.txt
       - name: Tests
         run: pytest -q

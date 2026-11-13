@@ -202,6 +202,14 @@ def validate_episode(ep: Episode) -> None:
         for sfx in s.get("sfx", []) or []:
             if sfx not in sfx_ids:
                 errors.append(f"{sid}: SFX '{sfx}' nicht in sound_design.sfx definiert")
+        loop = s.get("loop")
+        if loop:
+            if loop.get("strategy", "ffmpeg_seam") not in ("ffmpeg_seam", "keyframe_last"):
+                errors.append(f"{sid}: loop.strategy muss ffmpeg_seam oder keyframe_last sein")
+            if not 0.1 <= float(loop.get("seam_s", 0.5)) <= 1.0:
+                errors.append(f"{sid}: loop.seam_s muss 0.1–1.0 s sein")
+            if loop.get("match_frame_with") not in [x.get("id") for x in ep.scenes]:
+                errors.append(f"{sid}: loop.match_frame_with verweist auf unbekannte Szene")
         cursor = start + dur
     if abs(cursor - ep.duration) > EPS:
         errors.append(f"Szenen ergeben {cursor:.3f} s, erwartet {ep.duration} s")

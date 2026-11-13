@@ -23,6 +23,10 @@ safety_margin: 0.25
 # 1.00 überschätzt die Kosten bewusst (realer Kurs liegt darunter).
 eur_per_usd: 1.00
 
+# Umsatzsteuer auf den Credit-Kauf (Runway: "sales tax may apply").
+# Wird auf jede Schätzung aufgeschlagen. Mindestwert 0.19.
+vat_rate: 0.19
+
 # Warnschwelle (Anteil des Gesamtbudgets), ab der der Workflow laut warnt.
 warn_at_fraction: 0.75
 

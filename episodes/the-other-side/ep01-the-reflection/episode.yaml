@@ -93,8 +93,9 @@ locations:
 
 # ---------------------------------------------------------------------
 # SCENES / SHOTS
-# render_duration: ganze Sekunden, die bei Runway generiert werden (2–10);
-#   FFmpeg schneidet anschließend exakt auf duration.
+# render_duration: Mindestlänge in ganzen Sekunden, die generiert wird. Die Pipeline
+#   rundet auf die nächste vom Modell erlaubte Dauer (gen4.5/gen4_turbo: 2–10,
+#   veo3.1*: 4/6/8). FFmpeg schneidet anschließend exakt auf duration.
 # ---------------------------------------------------------------------
 scenes:
   - id: S01
@@ -291,9 +292,15 @@ scenes:
     sfx: [light_flicker_on, toothbrush_scrub, drip]
     music: "drone returns at exactly the level of 0:00 (loop seam, no fade)"
     loop:
-      # Letzter Frame von S08 wird mit erstem Frame von S01 abgeglichen.
+      # Letzter Frame von S08 == erster Frame von S01.
       match_frame_with: S01
       no_fade_out: true
+      # ffmpeg_seam (Standard, modellunabhängig): die letzten seam_s Sekunden blenden
+      #   bildgenau in den ersten Frame des Films über.
+      # keyframe_last (optional): S08 wird mit veo3.1_fast und End-Keyframe = KF_S01
+      #   generiert (gen4.5/gen4_turbo unterstützen laut API KEIN End-Keyframe).
+      strategy: ffmpeg_seam
+      seam_s: 0.5
 
 # ---------------------------------------------------------------------
 # DIALOGUE (englisch). at = absolute Startzeit in Sekunden.

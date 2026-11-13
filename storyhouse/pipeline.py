@@ -36,6 +36,10 @@ def assemble(ep: Episode, clips: dict[str, Path], dialogue_audio: dict[str, Path
     norm = [ff.normalize_clip(clips[s["id"]], work / f"{s['id']}_norm.mp4", float(s["duration"]), width, height, fps)
             for s in ep.scenes]
     picture = ff.concat_clips(norm, work / "picture.mp4")
+    loop = next((s.get("loop") for s in ep.scenes if s.get("loop")), None)
+    if loop and loop.get("match_frame_with") == ep.scenes[0]["id"]:
+        # Unabhängig vom Videomodell: letzter Frame == erster Frame
+        picture = ff.loop_seam(picture, work / "picture_loop.mp4", ep.duration, float(loop.get("seam_s", 0.5)), fps)
 
     # 2) Ton
     tracks: list[ff.Track] = []
@@ -114,8 +118,9 @@ def paid_render(ep_full: Episode, plan: Plan, client, out_dir: Path, scenes: str
         for job in plan.jobs:
             log(f"→ {job.id} ({job.model}, ~{job.credits:.0f} Credits)")
             url = client.run_job(job, outputs)
-            outputs[job.id] = url
             files[job.id] = downloader(url, raw / f"{job.id}.{job.ext}")
+            # Bilder werden als Data-URI weitergereicht (keine Abhängigkeit von ablaufenden URLs)
+            outputs[job.id] = ff.image_to_data_uri(files[job.id]) if job.kind == "image" else url
     finally:
         (out_dir / "outputs.json").parent.mkdir(parents=True, exist_ok=True)
         (out_dir / "outputs.json").write_text(json.dumps({k: str(v) for k, v in files.items()}, indent=2),

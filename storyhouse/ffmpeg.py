@@ -151,6 +151,41 @@ def concat_clips(clips: Sequence[Path], dst: Path) -> Path:
     return dst
 
 
+def loop_seam(picture: Path, dst: Path, duration: float, seam_s: float, fps: int = 24) -> Path:
+    """Nahtloser Loop ohne Modellunterstützung: Die letzten seam_s Sekunden blenden
+    über eine Standbild-Ebene in exakt den ersten Frame des Films über.
+    Ergebnis: letzter Frame == erster Frame."""
+    first = dst.with_name(dst.stem + "_first.png")
+    run(["ffmpeg", "-y", "-hide_banner", "-loglevel", "error", "-i", str(picture),
+         "-frames:v", "1", str(first)])
+    start = max(0.0, duration - seam_s)
+    fade_d = max(0.05, seam_s - 2.0 / fps)  # Überblendung endet 2 Frames vor Schluss -> volle Deckung
+    fc = (
+        f"[1:v]format=rgba,fade=t=in:st={start:.3f}:d={fade_d:.3f}:alpha=1[still];"
+        f"[0:v][still]overlay=shortest=1:format=auto,format=yuv420p[v]"
+    )
+    run(["ffmpeg", "-y", "-hide_banner", "-loglevel", "error", "-i", str(picture),
+         "-loop", "1", "-t", f"{duration:.3f}", "-framerate", str(fps), "-i", str(first),
+         "-filter_complex", fc, "-map", "[v]", "-t", f"{duration:.3f}",
+         "-c:v", "libx264", "-preset", "veryfast", "-crf", "16", str(dst)])
+    return dst
+
+
+def image_to_data_uri(src: Path, max_bytes: int = 3_500_000) -> str:
+    """Bild als JPEG-Data-URI (Runway erlaubt Data-URIs bis 5 MB).
+    Unabhängig von ablaufenden Runway-Output-URLs."""
+    import base64
+
+    for q in (2, 4, 6, 9, 13):
+        jpg = src.with_suffix(f".q{q}.jpg")
+        run(["ffmpeg", "-y", "-hide_banner", "-loglevel", "error", "-i", str(src),
+             "-frames:v", "1", "-q:v", str(q), str(jpg)])
+        data = jpg.read_bytes()
+        if len(data) <= max_bytes:
+            return "data:image/jpeg;base64," + base64.b64encode(data).decode()
+    raise FFmpegError(f"{src}: Bild lässt sich nicht unter {max_bytes} Bytes komprimieren")
+
+
 # ---------------------------------------------------------------------
 # Audio
 # ---------------------------------------------------------------------

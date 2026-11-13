@@ -18,6 +18,7 @@ KI-Filmstudio für vertikale Kurzfilme. Erste Produktion:
 | [`storyhouse/`](storyhouse) | Pipeline (Python, Runway API + FFmpeg) |
 | [`.github/workflows/test-video.yml`](.github/workflows/test-video.yml) | Manueller Workflow für Testvideos |
 | [`docs/ANLEITUNG.md`](docs/ANLEITUNG.md) | **Schritt-für-Schritt-Anleitung** |
+| [`docs/API_ABGLEICH.md`](docs/API_ABGLEICH.md) | Abgleich mit der offiziellen Runway-API, Preise, Restrisiken |
 
 ## Schnellstart (kostenlos)
 
@@ -32,6 +33,7 @@ pytest -q
 ## Sicherheitsprinzipien
 
 - **Bezahltes Rendern ist gesperrt** (`paid_rendering_enabled: false`). Freischaltung nur per PR.
-- **Budget:** max. 200 € gesamt (hart im Code gedeckelt), max. 25 € pro Lauf, +25 % Sicherheitsaufschlag, Reservierung vor jeder Ausgabe, Stopp vor jedem Aufruf, der das Limit reißen würde.
+- **Budget:** max. 200 € gesamt (hart im Code gedeckelt), max. 25 € pro Lauf, +25 % Puffer, 19 % USt., Reservierung vor jeder Ausgabe, nur ein offener Lauf, Abgleich mit Runways eigener Kostenangabe pro Task, Stopp bei Preisabweichung oder unklaren Anfragen.
+- **API-konform:** Jeder Payload wird vor dem Senden gegen die offizielle Spezifikation geprüft (`storyhouse/runway_spec.py`).
 - **Keine API-Schlüssel im Code** – nur als GitHub-Secret der Umgebung `paid-render`. Ein Test schlägt fehl, wenn ein Schlüssel im Repo auftaucht.
-- **Keine Veröffentlichung** – Videos landen ausschließlich als Workflow-Artefakt.
+- **Keine Veröffentlichung** – Videos landen ausschließlich als Workflow-Artefakt; bezahlte Ergebnisse nur verschlüsselt (das Repo ist öffentlich).

@@ -1,8 +1,11 @@
 """Leitplanken: keine Schlüssel im Repo, keine Veröffentlichung, Workflows nur manuell."""
+import os
 import re
+import shutil
 import subprocess
 from pathlib import Path
 
+import pytest
 import yaml
 
 from storyhouse.cli import main
@@ -57,11 +60,44 @@ def test_paid_job_is_gated():
     wf = _wf("test-video.yml")
     paid = wf["jobs"]["paid-render"]
     assert paid["environment"]["name"] == "paid-render"
-    assert "paid-render" in paid["if"]
+    assert "paid-render" in paid["if"] and "refs/heads/main" in paid["if"]
     assert paid["concurrency"]["cancel-in-progress"] is False
-    dry = wf["jobs"]["dry-run"]
+    names = [s.get("name", "") for s in paid["steps"]]
+    assert names.index("Generalprobe (Dry-Run, 0 €)") < names.index("Budget reservieren und sichern (vor jeder Ausgabe)")
+    assert names.index("Preflight (Freigabe, Preise, Budget, Guthaben)") < names.index("Rendern (kostenpflichtig)")
+    finalize = next(s for s in paid["steps"] if s.get("name") == "Kosten verbuchen")
+    assert finalize["if"] == "${{ always() }}"
+
+
+def test_paid_results_only_uploaded_encrypted():
+    paid = _wf("test-video.yml")["jobs"]["paid-render"]
+    uploads = [s for s in paid["steps"] if str(s.get("uses", "")).startswith("actions/upload-artifact")]
+    assert uploads and all(u["with"]["path"].strip() == "output/encrypted/" for u in uploads)
+
+
+@pytest.mark.skipif(not shutil.which("openssl"), reason="openssl fehlt")
+def test_encryption_roundtrip(tmp_path):
+    src, dst = tmp_path / "render", tmp_path / "enc"
+    src.mkdir()
+    (src / "film.mp4").write_bytes(b"secret-film-bytes" * 100)
+    (src / "outputs.json").write_text('{"url": "https://signed"}')
+    env = {**os.environ, "ARTIFACT_PASSPHRASE": "correct horse battery staple"}
+    subprocess.run(["bash", str(ROOT / "scripts" / "encrypt_outputs.sh"), str(src), str(dst)], env=env, check=True)
+    assert sorted(p.name for p in dst.iterdir()) == ["film.mp4.enc"], "Runway-URLs dürfen nicht hochgeladen werden"
+    assert b"secret-film-bytes" not in (dst / "film.mp4.enc").read_bytes()
+    out = tmp_path / "back.mp4"
+    subprocess.run(["openssl", "enc", "-d", "-aes-256-cbc", "-pbkdf2", "-iter", "600000", "-in",
+                    str(dst / "film.mp4.enc"), "-out", str(out), "-pass", "env:ARTIFACT_PASSPHRASE"],
+                   env=env, check=True)
+    assert out.read_bytes() == (src / "film.mp4").read_bytes()
+
+
+def test_dry_run_job_has_no_secrets_and_no_api():
+    dry = _wf("test-video.yml")["jobs"]["dry-run"]
     text = yaml.safe_dump(dry)
-    assert "RUNWAYML_API_SECRET" not in text, "Dry-Run darf den Schlüssel nie sehen"
+    assert "secrets." not in text, "Dry-Run darf keine Secrets sehen"
+    assert "environment" not in dry
+    assert "paid-render" not in text
 
 
 def test_workflow_inputs_not_interpolated_into_shell():
@@ -82,6 +118,7 @@ def test_nothing_publishes_videos():
 def test_cli_preflight_refuses_by_default(tmp_path, monkeypatch):
     monkeypatch.setenv("STORYHOUSE_APPROVAL", "ICH GEBE DIESEN RENDER FREI")
     monkeypatch.setenv("RUNWAYML_API_SECRET", "dummy")
+    monkeypatch.setenv("ARTIFACT_PASSPHRASE", "x" * 20)
     rc = main(["preflight", "--ledger", str(tmp_path / "l.json")])
     assert rc == 2
 

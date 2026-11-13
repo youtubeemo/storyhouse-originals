@@ -7,11 +7,11 @@ Alle Prompts stehen maschinenlesbar in [`episode.yaml`](episode.yaml) und werden
 
 Jede Einstellung entsteht in zwei Stufen, damit die KI-Schauspielerin über alle Shots gleich aussieht:
 
-1. **Referenzen** (einmalig): Casting-Porträt `@maya` und Set `@bathroom` mit `gen4_image`.
+1. **Referenzen** (einmalig): Casting-Porträt `@maya` und Set `@bathroom` mit `gen4_image` (max. 3 Referenzen pro Bild, Tag 3–16 Zeichen).
 2. **Keyframe** pro Shot: `gen4_image` mit `referenceImages` (`@maya`, `@bathroom`) + `keyframe_prompt` + globaler Look.
 3. **Bewegung**: `image_to_video` (`gen4.5` final, `gen4_turbo` für Tests) mit `motion_prompt` – beschreibt nur Bewegung und Kamera, nicht erneut das Aussehen.
 
-Prompt-Regeln (Runway): positiv formulieren (es gibt keine Negativprompts), ein klarer Hauptvorgang pro Shot, Kamera explizit benennen, „realistic, subtle motion“ gegen Overacting. Text im Bild (z. B. Schrift im beschlagenen Glas) wird nicht generiert, sondern bei Bedarf in der Post gesetzt.
+Prompt-Regeln (Runway): positiv formulieren (`gen4.5`/`gen4_image` haben keine Negativprompts), ein klarer Hauptvorgang pro Shot, Kamera explizit benennen, „realistic, subtle motion“ gegen Overacting. Text im Bild (z. B. Schrift im beschlagenen Glas) wird nicht generiert, sondern bei Bedarf in der Post gesetzt.
 
 **Globaler Look** (wird jedem Keyframe-Prompt angehängt):
 > Photorealistic cinematic film still, shot on ARRI Alexa 35 with a 40mm anamorphic lens, shallow depth of field, natural skin texture with pores, subtle film grain, low-key lighting, cold teal fluorescent light mixed with a faint warm sodium streetlight, deep shadows, high dynamic range, psychological thriller mood, no text, no watermark.
@@ -68,4 +68,8 @@ Prompt-Regeln (Runway): positiv formulieren (es gibt keine Negativprompts), ein 
 ### S08 – THE LOOP (0:35.5–0:40)
 **Keyframe:** wie S01, „another woman's shoulder“ im Vordergrund, „Identical composition to the opening shot.“
 **Motion:** Darkness, then the fluorescent light flickers on. The reflection leans close to the glass and her lips begin to whisper while the blurred woman in the foreground brushes her teeth. Very slow push-in. Realistic.
-**Loop-Technik:** Für S08 wird zusätzlich der *erste Frame von S01* als End-Keyframe übergeben (`promptImage` mit `position: last`), sodass der letzte Frame von S08 bildgleich in S01 übergeht. Audio: Drone läuft ohne Fade über die Naht, Satz „Whatever you do—“ endet bei 40,0 s und wird von „—don't turn around.“ bei 0,35 s fortgesetzt.
+**Loop-Technik:** `gen4.5` und `gen4_turbo` akzeptieren laut offizieller API-Spezifikation nur ein *Start*-Bild (`position: "first"`), kein End-Keyframe. Darum zwei Wege:
+- **Standard `ffmpeg_seam`:** S08 ist kompositorisch identisch zu S01 angelegt; die letzten 0,5 s blenden in FFmpeg bildgenau in den ersten Frame des Films über (letzter Frame = erster Frame, per Test geprüft).
+- **Optional `keyframe_last`:** S08 wird mit `veo3.1_fast` generiert (Start = KF_S08, Ende = KF_S01, 6 s, ohne Audio, 60 Credits). Umschalten in `episode.yaml` → `loop.strategy`.
+
+Audio: Drone läuft ohne Fade über die Naht, „Whatever you do—“ endet bei 40,0 s und wird von „—don't turn around.“ bei 0,35 s fortgesetzt.

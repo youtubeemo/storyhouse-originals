@@ -51,8 +51,16 @@ def test_mix_command_contains_ducking_silence_and_loudnorm(tmp_path):
 
 @requires_ffmpeg
 @pytest.mark.ffmpeg
-def test_dry_run_preview_end_to_end(episode, pricing, cfg, tmp_path):
+def test_dry_run_preview_end_to_end(episode, pricing, cfg, tmp_path, monkeypatch):
+    import socket
+
     from storyhouse.pipeline import dry_run
+
+    def no_network(*a, **k):
+        raise AssertionError("Dry-Run darf keine Netzwerkverbindung öffnen")
+
+    monkeypatch.setattr(socket.socket, "connect", no_network)
+    monkeypatch.delenv("RUNWAYML_API_SECRET", raising=False)
 
     m = dry_run(episode, tmp_path, pricing, cfg, scenes="S05-S06", width=180, height=320, fps=12)
     assert m["paid_api_calls"] == 0 and m["spent_eur"] == 0

@@ -2,13 +2,19 @@
 #  Testvideo – NUR MANUELL (Actions → "Testvideo" → Run workflow)
 #
 #  mode = dry-run      kostenlos: Platzhalterbilder + Platzhalterton, echter
-#                      Schnitt/Mischung/Untertitel; kein API-Schlüssel nötig.
+#                      Schnitt/Mischung/Untertitel/Loop; kein Secret, keine API.
 #  mode = paid-render  kostenpflichtig: nur wenn ALLE Sperren offen sind:
-#                      1) config/budget.yaml paid_rendering_enabled: true (per PR)
-#                      2) Bestätigungsphrase exakt eingegeben
-#                      3) Umgebung "paid-render" freigegeben (Required Reviewer)
-#                      4) Budget-Reservierung passt in Lauf- und Gesamtbudget
-#  Es wird NICHTS veröffentlicht. Ergebnisse landen nur als Workflow-Artefakt.
+#                      1) Lauf auf main gestartet
+#                      2) config/budget.yaml paid_rendering_enabled: true (per PR)
+#                      3) Bestätigungsphrase exakt eingegeben
+#                      4) Umgebung "paid-render" freigegeben (Required Reviewer,
+#                         Deployment-Branch nur main)
+#                      5) Preise geprüft und < 45 Tage alt
+#                      6) Budget-Reservierung passt in Lauf- und Gesamtbudget,
+#                         keine offene Reservierung, Runway-Guthaben reicht
+#  Es wird NICHTS veröffentlicht. Bezahlte Ergebnisse werden VERSCHLÜSSELT
+#  hochgeladen (öffentliches Repo: Artefakte sind für alle angemeldeten
+#  GitHub-Nutzer abrufbar).
 # =====================================================================
 name: Testvideo
 
@@ -59,7 +65,8 @@ jobs:
       - name: Abhängigkeiten
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq ffmpeg fonts-dejavu-core >/dev/null
+          sudo apt-get install -y -qq ffmpeg fonts-dejavu-core fonts-inter >/dev/null || \
+            sudo apt-get install -y -qq ffmpeg fonts-dejavu-core >/dev/null
           pip install -q -r requirements.txt
       - name: Tests
         run: pytest -q
@@ -68,6 +75,7 @@ jobs:
           extra=""
           if [ "$PREVIEW" = "true" ]; then extra="--preview"; fi
           python -m storyhouse dry-run --profile "$PROFILE" --scenes "$SCENES" --out output/dry-run $extra
+      # Enthält nur Inhalte, die ohnehin im (öffentlichen) Repo stehen.
       - uses: actions/upload-artifact@v4
         with:
           name: dryrun-${{ github.run_id }}
@@ -80,10 +88,12 @@ jobs:
 
   # ---------------------------------------------------------------
   paid-render:
-    if: ${{ inputs.mode == 'paid-render' }}
+    if: ${{ inputs.mode == 'paid-render' && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     timeout-minutes: 90
-    # Required Reviewers in Settings → Environments → paid-render eintragen.
+    # Settings → Environments → paid-render:
+    #   Required reviewers = Produktion, Deployment branches = nur main,
+    #   Secrets RUNWAYML_API_SECRET + ARTIFACT_PASSPHRASE (nur hier, nicht als Repo-Secret)
     environment:
       name: paid-render
     # Nie zwei bezahlte Läufe gleichzeitig (Ledger-Konsistenz).
@@ -98,6 +108,7 @@ jobs:
       STORYHOUSE_APPROVAL: ${{ inputs.approval }}
       STORYHOUSE_RUN_ID: run-${{ github.run_id }}-${{ github.run_attempt }}
       RUNWAYML_API_SECRET: ${{ secrets.RUNWAYML_API_SECRET }}
+      ARTIFACT_PASSPHRASE: ${{ secrets.ARTIFACT_PASSPHRASE }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -106,15 +117,18 @@ jobs:
       - name: Abhängigkeiten
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq ffmpeg fonts-dejavu-core >/dev/null
+          sudo apt-get install -y -qq ffmpeg fonts-dejavu-core fonts-inter >/dev/null || \
+            sudo apt-get install -y -qq ffmpeg fonts-dejavu-core >/dev/null
           pip install -q -r requirements.txt
       - name: Tests
         run: pytest -q
+      - name: Generalprobe (Dry-Run, 0 €)
+        run: python -m storyhouse dry-run --preview --profile "$PROFILE" --scenes "$SCENES" --out output/rehearsal
       - name: Ledger holen
         run: bash scripts/ledger.sh pull
       - name: Budgetstand
         run: python -m storyhouse budget-status --ledger .ledger/ledger.json
-      - name: Preflight (Freigabe + Budget)
+      - name: Preflight (Freigabe, Preise, Budget, Guthaben)
         run: python -m storyhouse preflight --profile "$PROFILE" --scenes "$SCENES" --ledger .ledger/ledger.json
       - name: Budget reservieren und sichern (vor jeder Ausgabe)
         run: |
@@ -129,13 +143,13 @@ jobs:
             python -m storyhouse finalize --profile "$PROFILE" --scenes "$SCENES" --ledger .ledger/ledger.json --run-id "$STORYHOUSE_RUN_ID" --out output/render
             bash scripts/ledger.sh push "finalize $STORYHOUSE_RUN_ID"
           fi
+      - name: Ergebnisse verschlüsseln
+        if: ${{ always() }}
+        run: bash scripts/encrypt_outputs.sh output/render output/encrypted
       - uses: actions/upload-artifact@v4
         if: ${{ always() }}
         with:
-          name: render-${{ github.run_id }}
-          path: |
-            output/render/*.mp4
-            output/render/*.srt
-            output/render/*.json
+          name: render-${{ github.run_id }}-encrypted
+          path: output/encrypted/
           retention-days: 14
           if-no-files-found: ignore
