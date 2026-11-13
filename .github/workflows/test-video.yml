@@ -1,0 +1,155 @@
+# =====================================================================
+#  Testvideo – NUR MANUELL (Actions → "Testvideo" → Run workflow)
+#
+#  mode = dry-run      kostenlos: Platzhalterbilder + Platzhalterton, echter
+#                      Schnitt/Mischung/Untertitel/Loop; kein Secret, keine API.
+#  mode = paid-render  kostenpflichtig: nur wenn ALLE Sperren offen sind:
+#                      1) Lauf auf main gestartet
+#                      2) config/budget.yaml paid_rendering_enabled: true (per PR)
+#                      3) Bestätigungsphrase exakt eingegeben
+#                      4) Umgebung "paid-render" freigegeben (Required Reviewer,
+#                         Deployment-Branch nur main)
+#                      5) Preise geprüft und < 45 Tage alt
+#                      6) Budget-Reservierung passt in Lauf- und Gesamtbudget,
+#                         keine offene Reservierung, Runway-Guthaben reicht
+#  Es wird NICHTS veröffentlicht. Bezahlte Ergebnisse werden VERSCHLÜSSELT
+#  hochgeladen (öffentliches Repo: Artefakte sind für alle angemeldeten
+#  GitHub-Nutzer abrufbar).
+# =====================================================================
+name: Testvideo
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "dry-run (kostenlos) oder paid-render (kostenpflichtig, Freigabe nötig)"
+        type: choice
+        options: [dry-run, paid-render]
+        default: dry-run
+      profile:
+        description: "test = günstige Modelle, final = Endqualität"
+        type: choice
+        options: [test, final]
+        default: test
+      scenes:
+        description: "all | S01,S03 | S02-S04"
+        type: string
+        default: all
+      preview:
+        description: "Dry-Run in kleiner Auflösung (schneller)"
+        type: boolean
+        default: false
+      approval:
+        description: "Nur für paid-render: exakte Bestätigungsphrase aus config/budget.yaml"
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  # ---------------------------------------------------------------
+  dry-run:
+    if: ${{ inputs.mode == 'dry-run' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      PROFILE: ${{ inputs.profile }}
+      SCENES: ${{ inputs.scenes }}
+      PREVIEW: ${{ inputs.preview }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Abhängigkeiten
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg fonts-dejavu-core fonts-inter >/dev/null || \
+            sudo apt-get install -y -qq ffmpeg fonts-dejavu-core >/dev/null
+          pip install -q -r requirements.txt
+      - name: Tests
+        run: pytest -q
+      - name: Dry-Run rendern (0 €)
+        run: |
+          extra=""
+          if [ "$PREVIEW" = "true" ]; then extra="--preview"; fi
+          python -m storyhouse dry-run --profile "$PROFILE" --scenes "$SCENES" --out output/dry-run $extra
+      # Enthält nur Inhalte, die ohnehin im (öffentlichen) Repo stehen.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dryrun-${{ github.run_id }}
+          path: |
+            output/dry-run/*.mp4
+            output/dry-run/*.srt
+            output/dry-run/*.md
+            output/dry-run/*.json
+          retention-days: 7
+
+  # ---------------------------------------------------------------
+  paid-render:
+    if: ${{ inputs.mode == 'paid-render' && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    # Settings → Environments → paid-render:
+    #   Required reviewers = Produktion, Deployment branches = nur main,
+    #   Secrets RUNWAYML_API_SECRET + ARTIFACT_PASSPHRASE (nur hier, nicht als Repo-Secret)
+    environment:
+      name: paid-render
+    # Nie zwei bezahlte Läufe gleichzeitig (Ledger-Konsistenz).
+    concurrency:
+      group: paid-render-budget
+      cancel-in-progress: false
+    permissions:
+      contents: write   # nur für den Branch "budget-ledger"
+    env:
+      PROFILE: ${{ inputs.profile }}
+      SCENES: ${{ inputs.scenes }}
+      STORYHOUSE_APPROVAL: ${{ inputs.approval }}
+      STORYHOUSE_RUN_ID: run-${{ github.run_id }}-${{ github.run_attempt }}
+      RUNWAYML_API_SECRET: ${{ secrets.RUNWAYML_API_SECRET }}
+      ARTIFACT_PASSPHRASE: ${{ secrets.ARTIFACT_PASSPHRASE }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Abhängigkeiten
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg fonts-dejavu-core fonts-inter >/dev/null || \
+            sudo apt-get install -y -qq ffmpeg fonts-dejavu-core >/dev/null
+          pip install -q -r requirements.txt
+      - name: Tests
+        run: pytest -q
+      - name: Generalprobe (Dry-Run, 0 €)
+        run: python -m storyhouse dry-run --preview --profile "$PROFILE" --scenes "$SCENES" --out output/rehearsal
+      - name: Ledger holen
+        run: bash scripts/ledger.sh pull
+      - name: Budgetstand
+        run: python -m storyhouse budget-status --ledger .ledger/ledger.json
+      - name: Preflight (Freigabe, Preise, Budget, Guthaben)
+        run: python -m storyhouse preflight --profile "$PROFILE" --scenes "$SCENES" --ledger .ledger/ledger.json
+      - name: Budget reservieren und sichern (vor jeder Ausgabe)
+        run: |
+          python -m storyhouse reserve --profile "$PROFILE" --scenes "$SCENES" --ledger .ledger/ledger.json --run-id "$STORYHOUSE_RUN_ID"
+          bash scripts/ledger.sh push "reserve $STORYHOUSE_RUN_ID"
+      - name: Rendern (kostenpflichtig)
+        run: python -m storyhouse render --profile "$PROFILE" --scenes "$SCENES" --ledger .ledger/ledger.json --run-id "$STORYHOUSE_RUN_ID" --out output/render
+      - name: Kosten verbuchen
+        if: ${{ always() }}
+        run: |
+          if [ -f .ledger/ledger.json ]; then
+            python -m storyhouse finalize --profile "$PROFILE" --scenes "$SCENES" --ledger .ledger/ledger.json --run-id "$STORYHOUSE_RUN_ID" --out output/render
+            bash scripts/ledger.sh push "finalize $STORYHOUSE_RUN_ID"
+          fi
+      - name: Ergebnisse verschlüsseln
+        if: ${{ always() }}
+        run: bash scripts/encrypt_outputs.sh output/render output/encrypted
+      - uses: actions/upload-artifact@v4
+        if: ${{ always() }}
+        with:
+          name: render-${{ github.run_id }}-encrypted
+          path: output/encrypted/
+          retention-days: 14
+          if-no-files-found: ignore

@@ -1,0 +1,402 @@
+# =====================================================================
+#  STORYHOUSE ORIGINALS
+#  THE OTHER SIDE – Episode 01: THE REFLECTION
+#  Single source of truth for script, storyboard, prompts, audio, subs.
+#  Alle Timecodes in Sekunden. Gesamtlänge muss exakt 40.0 s ergeben.
+# =====================================================================
+
+series: THE OTHER SIDE
+episode: 1
+title: THE REFLECTION
+slug: tos-ep01-the-reflection
+genre: psychological thriller
+logline: >
+  At 3:07 a.m. a young woman's reflection breaks the rules and whispers a
+  warning. She has one chance to obey it — and she turns around.
+
+format:
+  duration_s: 40.0
+  width: 1080
+  height: 1920
+  fps: 24
+  aspect: "9:16"
+  # Runway generiert 720x1280 (9:16); FFmpeg skaliert hochwertig auf 1080x1920.
+  generation_ratio: "720:1280"
+  loudness_lufs: -14.0
+  true_peak_db: -1.0
+
+look:
+  global_style: >
+    Photorealistic cinematic film still, shot on ARRI Alexa 35 with a 40mm
+    anamorphic lens, shallow depth of field, natural skin texture with pores,
+    subtle film grain, low-key lighting, cold teal fluorescent light mixed with
+    a faint warm sodium streetlight, deep shadows, high dynamic range,
+    psychological thriller mood, no text, no watermark.
+  grade: "teal-and-amber, crushed blacks, soft highlight roll-off, 35mm grain"
+
+characters:
+  maya:
+    name: MAYA COLE
+    ref_tag: maya
+    description: >
+      Woman, 28, pale olive skin with light freckles, tired hazel eyes,
+      shoulder-length dark brown hair loosely tied back with loose strands,
+      small vertical scar through her LEFT eyebrow, thin silver chain necklace,
+      oversized faded grey cotton t-shirt. Natural, no makeup, exhausted.
+    reference_prompt: >
+      Photorealistic casting reference portrait of a 28-year-old woman,
+      pale olive skin with light freckles, tired hazel eyes, shoulder-length
+      dark brown hair loosely tied back, small vertical scar through her left
+      eyebrow, thin silver chain necklace, oversized faded grey t-shirt,
+      neutral expression, soft frontal key light, plain dark grey background,
+      85mm lens, ultra-detailed natural skin texture.
+    voice:
+      provider: runway
+      model: eleven_v3
+      preset_id: Maya
+      direction: "breathy, frightened, close-mic, American English"
+  reflection:
+    name: THE REFLECTION
+    ref_tag: maya            # gleiche Schauspielerin, gleiche Referenz
+    description: >
+      Maya's mirror image — identical, but stiller and more deliberate.
+      Eyes slightly wet and urgent. Moves a fraction of a second out of sync.
+    voice:
+      provider: runway
+      model: eleven_v3
+      preset_id: Maya        # gleiche Stimme, in der Post entfremdet
+      direction: "intimate whisper, urgent, slightly hollow"
+      fx: mirror_voice       # siehe sound_design.voice_fx
+  the_other:
+    name: THE OTHER
+    ref_tag: maya
+    description: >
+      The thing that steps out of the mirror wearing Maya's face. Calm,
+      faint smile. Tell: the eyebrow scar is on the RIGHT side (mirrored).
+    voice:
+      provider: runway
+      model: eleven_v3
+      preset_id: Maya
+      direction: "soft, warm, almost kind — deeply wrong"
+      fx: other_voice
+
+locations:
+  bathroom:
+    ref_tag: bathroom
+    reference_prompt: >
+      Photorealistic interior of a small, old city-apartment bathroom at night,
+      cracked white subway tiles, porcelain sink with a slowly dripping chrome
+      faucet, rectangular medicine-cabinet mirror with oxidized silver edges,
+      a single flickering fluorescent tube above the mirror casting cold teal
+      light, a tiny frosted window with faint orange streetlight, a closed
+      white door behind, cinematic low-key lighting, empty, no people.
+
+# ---------------------------------------------------------------------
+# SCENES / SHOTS
+# render_duration: Mindestlänge in ganzen Sekunden, die generiert wird. Die Pipeline
+#   rundet auf die nächste vom Modell erlaubte Dauer (gen4.5/gen4_turbo: 2–10,
+#   veo3.1*: 4/6/8). FFmpeg schneidet anschließend exakt auf duration.
+# ---------------------------------------------------------------------
+scenes:
+  - id: S01
+    name: THE HOOK
+    start: 0.0
+    duration: 3.0
+    render_duration: 4
+    beat: hook
+    shot: "ECU, mirror POV — reflection's face fills frame, real Maya's blurred shoulder in foreground"
+    camera: "locked off, imperceptible push-in"
+    action: >
+      Maya brushes her teeth, eyes down. In the mirror, her reflection has
+      STOPPED brushing. It leans toward the glass and whispers.
+    keyframe_prompt: >
+      @maya's reflection in a bathroom mirror, extreme close-up, the reflection
+      leans close to the glass staring straight into the lens with wet urgent
+      eyes, toothbrush frozen at her lips, while in the soft-focus foreground
+      the real woman's shoulder and hair face the mirror, cold flickering
+      fluorescent light, inside @bathroom.
+    motion_prompt: >
+      The reflection stays perfectly still and stares into the lens while the
+      blurred real woman in the foreground keeps brushing her teeth. The
+      reflection's lips slowly whisper three words. The fluorescent light
+      flickers once. Very slow push-in. Realistic, subtle motion.
+    sfx: [fluorescent_buzz, toothbrush_scrub, drip]
+    music: "low sub drone already running (loop seam), single reversed piano note at 0.2s"
+    on_screen_text: null
+
+  - id: S02
+    name: FROZEN
+    start: 3.0
+    duration: 5.0
+    render_duration: 6
+    beat: setup
+    shot: "MCU over-the-shoulder into mirror"
+    camera: "handheld, barely breathing"
+    action: >
+      Maya stops. Looks up. The reflection snaps back into perfect sync —
+      everything looks normal. She lowers the toothbrush and lifts trembling
+      fingers toward the glass.
+    keyframe_prompt: >
+      Over-the-shoulder shot of @maya standing at the sink in @bathroom,
+      looking up at her own reflection in the medicine-cabinet mirror,
+      toothbrush in hand, face pale and frozen with fear, foam on her lip,
+      cold teal fluorescent light from above, shallow depth of field.
+    motion_prompt: >
+      The woman slowly lowers her toothbrush and raises trembling fingertips
+      toward the mirror; her reflection mirrors her perfectly. Her breathing
+      is shallow, her chest rises. Subtle handheld camera sway. Realistic.
+    sfx: [heartbeat_low, faucet_off, breath]
+    music: "drone thins out, high string harmonic enters"
+
+  - id: S03
+    name: THE DOOR
+    start: 8.0
+    duration: 4.5
+    render_duration: 5
+    beat: escalation
+    shot: "MS mirror insert — in the mirror the door behind her is OPEN, dark hallway"
+    camera: "slow rack focus from Maya's face to the dark doorway in the mirror"
+    action: >
+      The light flickers. In the mirror, the door behind Maya stands open onto
+      darkness. We hear a slow creak — but only on the mirror side.
+    keyframe_prompt: >
+      Bathroom mirror reflection showing @maya's frightened face in the
+      foreground and, behind her in the reflection, the bathroom door standing
+      wide open onto a pitch-black hallway, @bathroom, flickering cold
+      fluorescent light, deep shadows, eerie stillness.
+    motion_prompt: >
+      Slow rack focus from the woman's face to the open black doorway behind
+      her in the reflection. The fluorescent tube flickers twice. Darkness in
+      the doorway seems to breathe. No sudden movement, realistic.
+    sfx: [door_creak_mirror, light_flicker_zap]
+    music: "string harmonic bends down a semitone"
+
+  - id: S04
+    name: CLOSER
+    start: 12.5
+    duration: 5.5
+    render_duration: 6
+    beat: escalation
+    shot: "CU reflection — moves on its own"
+    camera: "locked off"
+    action: >
+      Maya stays frozen. Her reflection does not. It steps closer to the glass
+      and its breath fogs the mirror FROM THE INSIDE. A palm print blooms
+      in the fog.
+    keyframe_prompt: >
+      Close-up of @maya's reflection inside a bathroom mirror, the reflection
+      pressed close to the glass, a patch of condensation fog on the inside of
+      the mirror around her lips, her palm flat against the glass from the
+      inside, terrified urgent eyes, @bathroom, cold teal light.
+    motion_prompt: >
+      The reflection leans closer by itself, her breath fogs the glass from
+      the inside and a palm print slowly forms in the condensation. Tiny,
+      unsettling, realistic movements. Locked-off camera.
+    sfx: [glass_breath_fog, palm_squeak, sub_hit_soft]
+    music: "pulse begins, 60 BPM low tom heartbeat"
+
+  - id: S05
+    name: THE WARNING
+    start: 18.0
+    duration: 6.0
+    render_duration: 7
+    beat: midpoint
+    shot: "Two-shot through the mirror: Maya (back, soft) and reflection (sharp)"
+    camera: "slow lateral slide"
+    action: >
+      The reflection whispers a warning. Maya answers, barely audible.
+      The reflection's eyes shift past Maya's shoulder — at something
+      behind her.
+    keyframe_prompt: >
+      Two-shot through a bathroom mirror, @maya's back and shoulder soft in the
+      foreground, her reflection sharp in the mirror looking past her shoulder
+      at something behind her with pure terror, @bathroom, flickering cold
+      fluorescent light, cinematic shadows.
+    motion_prompt: >
+      The reflection whispers urgently, then her eyes slowly slide past the
+      woman's shoulder toward the darkness behind her, widening in terror.
+      Slow lateral camera slide. Realistic micro-expressions.
+    sfx: [faint_whisper_behind]
+    music: "everything ducks under the dialogue, pulse continues"
+
+  - id: S06
+    name: TURN AROUND
+    start: 24.0
+    duration: 5.5
+    render_duration: 6
+    beat: false_relief
+    shot: "MS from behind the mirror's perspective — Maya slowly turns away from the glass"
+    camera: "slow orbit following her turn"
+    action: >
+      Against the warning, Maya turns around. Behind her: nothing. The door is
+      closed. Silence. She exhales — almost a laugh.
+    keyframe_prompt: >
+      Medium shot of @maya in @bathroom slowly turning her back to the mirror
+      to look behind her at a closed white door, her face in tense profile,
+      cold fluorescent light, the mirror behind her, cinematic stillness.
+    motion_prompt: >
+      The woman slowly turns around to face the closed door behind her. Nothing
+      is there. Her shoulders drop and she lets out a shaky breath, almost a
+      relieved laugh. Slow camera orbit. Realistic.
+    sfx: [exhale_laugh]          # Stille: siehe sound_design.silence_windows
+    music: "HARD CUT TO SILENCE for 1.5 s (false relief)"
+
+  - id: S07
+    name: THE SWAP (TWIST)
+    start: 29.5
+    duration: 6.0
+    render_duration: 7
+    beat: twist
+    shot: "Reverse reveal — camera is INSIDE the mirror. Maya pounds on the glass from the inside; outside, another Maya smiles."
+    camera: "slow pull-back revealing the mirror frame from the inside"
+    action: >
+      Maya turns back — and the angle reveals the truth: she is now INSIDE the
+      mirror, palms on the glass, screaming without sound. Outside, in the
+      real bathroom, the other Maya smiles calmly. Her scar is on the RIGHT
+      eyebrow. She speaks, then switches off the light.
+    keyframe_prompt: >
+      View from inside a bathroom mirror looking out: @maya trapped behind the
+      glass pressing both palms against it, screaming silently, in the
+      real bathroom outside an identical woman with the scar on her right
+      eyebrow stands calmly with a faint smile, @bathroom, cold fluorescent
+      light, inverted perspective, cinematic horror reveal.
+    motion_prompt: >
+      Slow pull-back from inside the mirror. The trapped woman pounds silently
+      on the glass. The calm woman outside tilts her head, smiles softly, and
+      reaches up to switch off the light. Realistic, controlled motion.
+    sfx: [glass_pound_muffled, light_switch_click, sub_drop]
+    music: "full orchestral sting on the reveal, then collapse into low drone"
+
+  - id: S08
+    name: THE LOOP
+    start: 35.5
+    duration: 4.5
+    render_duration: 5
+    beat: loop
+    shot: "ECU, matches S01 framing exactly — now OUR Maya is the reflection"
+    camera: "locked off, imperceptible push-in (identical to S01)"
+    action: >
+      Darkness, then the light flickers back on. The other Maya brushes her
+      teeth, eyes down. In the mirror, our Maya — trapped — leans to the glass
+      and starts the warning that opens the film.
+    keyframe_prompt: >
+      @maya's reflection in a bathroom mirror, extreme close-up, the reflection
+      leans close to the glass staring straight into the lens with wet urgent
+      eyes, while in the soft-focus foreground another woman's shoulder and
+      hair face the mirror, cold flickering fluorescent light, inside
+      @bathroom. Identical composition to the opening shot.
+    motion_prompt: >
+      Darkness, then the fluorescent light flickers on. The reflection leans
+      close to the glass and her lips begin to whisper while the blurred woman
+      in the foreground brushes her teeth. Very slow push-in. Realistic.
+    sfx: [light_flicker_on, toothbrush_scrub, drip]
+    music: "drone returns at exactly the level of 0:00 (loop seam, no fade)"
+    loop:
+      # Letzter Frame von S08 == erster Frame von S01.
+      match_frame_with: S01
+      no_fade_out: true
+      # ffmpeg_seam (Standard, modellunabhängig): die letzten seam_s Sekunden blenden
+      #   bildgenau in den ersten Frame des Films über.
+      # keyframe_last (optional): S08 wird mit veo3.1_fast und End-Keyframe = KF_S01
+      #   generiert (gen4.5/gen4_turbo unterstützen laut API KEIN End-Keyframe).
+      strategy: ffmpeg_seam
+      seam_s: 0.5
+
+# ---------------------------------------------------------------------
+# DIALOGUE (englisch). at = absolute Startzeit in Sekunden.
+# Der letzte Satz ("Whatever you do—") geht nahtlos in den ersten über.
+# ---------------------------------------------------------------------
+dialogue:
+  - id: D01
+    scene: S01
+    character: reflection
+    at: 0.35
+    text: "Don't turn around."
+    tts_text: "[whispers] Don't... turn around."
+  - id: D02
+    scene: S02
+    character: maya
+    at: 5.6
+    text: "...Hello?"
+    tts_text: "[whispers, trembling] ...Hello?"
+  - id: D03
+    scene: S05
+    character: reflection
+    at: 18.4
+    text: "It's not me you should be afraid of."
+    tts_text: "[whispers urgently] It's not me you should be afraid of."
+  - id: D04
+    scene: S05
+    character: maya
+    at: 21.6
+    text: "Then who—"
+    tts_text: "[barely audible] Then who—"
+  - id: D05
+    scene: S07
+    character: the_other
+    at: 31.6
+    text: "Thank you for turning around."
+    tts_text: "[softly, warmly] Thank you for turning around."
+  - id: D06
+    scene: S08
+    character: maya
+    at: 38.3
+    text: "Whatever you do—"
+    tts_text: "[whispers urgently] Whatever you do—"
+    loop_bridge: true
+
+# ---------------------------------------------------------------------
+# SOUND DESIGN – Prompts für Runway sound_effect (eleven_text_to_sound_v2)
+# at = absolute Startzeit; gain in dB.
+# ---------------------------------------------------------------------
+sound_design:
+  voice_fx:
+    mirror_voice: "highpass=f=180,lowpass=f=7000,aecho=0.6:0.5:35|70:0.25|0.15,volume=1.4"
+    other_voice: "highpass=f=120,aecho=0.5:0.4:20:0.15,volume=1.2"
+  music:
+    file: assets/music/ep01_score.wav   # optional, lizenzierte Musik; sonst Drone-Fallback
+    bed_gain_db: -16
+    duck_under_dialogue: true
+  drones:
+    - id: drone_main
+      prompt: "Dark cinematic sub-bass drone, slow evolving, horror film tension, seamless loop"
+      duration: 20
+      loop: true
+      at: 0.0
+      gain_db: -18
+      repeat_to_fill: true
+  sfx:
+    - {id: fluorescent_buzz,   at: 0.0,  duration: 12, gain_db: -26, loop: true,  prompt: "Old fluorescent tube light buzzing and humming in a small tiled bathroom, close"}
+    - {id: toothbrush_scrub,   at: 0.0,  duration: 3,  gain_db: -24, loop: false, prompt: "Close-up electric-free manual toothbrush scrubbing teeth, wet, intimate"}
+    - {id: drip,               at: 1.2,  duration: 2,  gain_db: -22, loop: false, prompt: "Single water drop falling from a faucet into a porcelain sink, reverberant"}
+    - {id: heartbeat_low,      at: 3.0,  duration: 5,  gain_db: -20, loop: false, prompt: "Slow deep heartbeat, muffled, cinematic tension"}
+    - {id: faucet_off,         at: 3.4,  duration: 1,  gain_db: -22, loop: false, prompt: "Old chrome bathroom faucet turned off with a squeak, water stops"}
+    - {id: breath,             at: 4.2,  duration: 3,  gain_db: -24, loop: false, prompt: "Woman's shaky frightened breathing, close microphone"}
+    - {id: door_creak_mirror,  at: 9.0,  duration: 3,  gain_db: -16, loop: false, prompt: "Slow old wooden door creaking open in the distance, eerie, reverberant hallway"}
+    - {id: light_flicker_zap,  at: 8.1,  duration: 1.5,gain_db: -18, loop: false, prompt: "Fluorescent light flicker with electrical zap and ballast tick"}
+    - {id: glass_breath_fog,   at: 13.0, duration: 3,  gain_db: -20, loop: false, prompt: "Soft breath against cold glass, very close, intimate and unsettling"}
+    - {id: palm_squeak,        at: 15.6, duration: 1.5,gain_db: -18, loop: false, prompt: "Palm pressing on wet glass with a soft squeak"}
+    - {id: sub_hit_soft,       at: 16.0, duration: 2,  gain_db: -14, loop: false, prompt: "Soft cinematic sub-bass hit, horror trailer"}
+    - {id: faint_whisper_behind,at: 22.6,duration: 2,  gain_db: -26, loop: false, prompt: "Barely audible unintelligible whisper from behind the listener, horror"}
+    - {id: exhale_laugh,       at: 27.6, duration: 2,  gain_db: -22, loop: false, prompt: "Woman exhaling with a short nervous relieved laugh, close"}
+    - {id: glass_pound_muffled,at: 30.0, duration: 4,  gain_db: -14, loop: false, prompt: "Fists pounding on thick glass heard from the other side, muffled, desperate"}
+    - {id: light_switch_click, at: 34.9, duration: 1,  gain_db: -12, loop: false, prompt: "Single light switch click in a small bathroom, close"}
+    - {id: sub_drop,           at: 29.5, duration: 4,  gain_db: -10, loop: false, prompt: "Huge cinematic sub drop and orchestral horror sting, trailer impact"}
+    - {id: light_flicker_on,   at: 36.2, duration: 1.5,gain_db: -18, loop: false, prompt: "Fluorescent tube flickering on with electrical ticks"}
+  silence_windows:
+    - {from: 25.6, to: 27.4}     # S06: harter Schnitt in die Stille (false relief)
+
+# ---------------------------------------------------------------------
+# SUBTITLES (TikTok-safe zone)
+# ---------------------------------------------------------------------
+subtitles:
+  font: "Inter Display"
+  font_size: 64
+  primary_colour: "&H00FFFFFF"
+  outline_colour: "&H00000000"
+  outline: 4
+  shadow: 0
+  margin_v: 560          # oberhalb der TikTok-UI am unteren Rand
+  margin_lr: 140
+  min_display_s: 1.0
+  chars_per_second: 15

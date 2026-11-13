@@ -1,0 +1,57 @@
+# =====================================================================
+#  Runway API – Preise (Runway Dev, 1 Credit = 0.01 USD)
+#
+#  Abgeglichen am 14.11.2026 mit:
+#    - https://docs.dev.runwayml.com/guides/pricing/
+#    - offizielles SDK runwayml/sdk-python @ 949ac4e (12.11.2026)
+#  Details: docs/API_ABGLEICH.md
+#
+#  Regeln der Pipeline:
+#    * Modelle mit verified: false werden für bezahlte Läufe VERWEIGERT.
+#    * Ist verified_on älter als max_age_days, werden bezahlte Läufe VERWEIGERT,
+#      bis die Preise erneut geprüft und das Datum per PR aktualisiert wurde.
+#    * Unbekannte Modelle werden nie mit 0 bewertet (Fehler).
+#    * Zusätzlich vergleicht der Client nach jeder Task-Anlage die von Runway
+#      gemeldeten Maximalkosten (estimatedCost) mit dieser Tabelle und bricht
+#      bei Abweichung sofort ab (Task wird storniert).
+# =====================================================================
+
+verified_on: "2026-11-14"
+max_age_days: 45
+usd_per_credit: 0.01
+
+video:                       # Credits pro generierter Sekunde
+  gen4.5:      {credits_per_second: 12, verified: true}
+  gen4_turbo:  {credits_per_second: 5,  verified: true}
+  veo3.1:      {credits_per_second: 20, verified: true, note: "ohne Audio (audio:false); mit Audio 40"}
+  veo3.1_fast: {credits_per_second: 10, verified: true, note: "ohne Audio (audio:false); mit Audio 15"}
+
+image:                       # Credits pro Bild
+  gen4_image:       {credits_per_image: 8, verified: true, note: "1080p; 720p = 5"}
+  gen4_image_turbo: {credits_per_image: 2, verified: true}
+
+tts:                         # 1 Credit je 50 Zeichen (aufgerundet), Minimum 1
+  eleven_v3:              {chars_per_credit: 50, min_credits: 1, verified: true}
+  eleven_multilingual_v2: {chars_per_credit: 50, min_credits: 1, verified: true}
+
+sound_effect:                # 1 Credit pro Sekunde bei angegebener Dauer (aufgerundet)
+  eleven_text_to_sound_v2: {credits_per_second: 1, verified: true}
+
+music:                       # auf der Preisseite NICHT gelistet -> für bezahlte Läufe gesperrt
+  eleven_music_v2_5: {credits_per_second: 2, verified: false}
+
+profiles:
+  test:                      # günstiger Testlauf
+    reference_image_model: gen4_image          # gen4_image_turbo verlangt Referenzbilder
+    keyframe_model: gen4_image_turbo
+    video_model: gen4_turbo
+    loop_video_model: veo3.1_fast              # nur bei loop.strategy = keyframe_last
+    tts_model: eleven_v3
+    sfx_model: eleven_text_to_sound_v2
+  final:                     # Endproduktion
+    reference_image_model: gen4_image
+    keyframe_model: gen4_image
+    video_model: gen4.5
+    loop_video_model: veo3.1_fast
+    tts_model: eleven_v3
+    sfx_model: eleven_text_to_sound_v2
