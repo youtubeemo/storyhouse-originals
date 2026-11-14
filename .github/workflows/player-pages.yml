@@ -1,0 +1,47 @@
+# =====================================================================
+#  iPhone-Player auf GitHub Pages
+#
+#  Veröffentlicht AUSSCHLIESSLICH den Ordner player/ (HTML, CSS, JS – eine
+#  Entschlüsselungsseite). Keine Videos, keine Artefakte, keine Secrets.
+#  Die Seite entschlüsselt .enc-Dateien nur im Browser des Geräts; sie hat per
+#  Content-Security-Policy keinerlei Netzwerkzugriff.
+#
+#  Einmalig: Settings → Pages → Build and deployment → Source: "GitHub Actions".
+# =====================================================================
+name: iPhone-Player veröffentlichen
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ["player/**", ".github/workflows/player-pages.yml"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: player-pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Nur Player-Dateien zulassen
+        run: |
+          bad=$(find player -type f ! -name '*.html' ! -name '*.css' ! -name '*.js' | head -5)
+          if [ -n "$bad" ]; then echo "Unerlaubte Dateien in player/: $bad"; exit 1; fi
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: player
+      - id: deployment
+        uses: actions/deploy-pages@v4
