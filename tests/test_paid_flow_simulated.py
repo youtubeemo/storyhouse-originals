@@ -27,6 +27,23 @@ class FakeClient:
         return f"https://fake.runway/{job.id}.{job.ext}"
 
 
+class FakeElevenLabs:
+    """Ersetzt den ElevenLabs-Client: prüft Spezifikation + Budget, schreibt Platzhalterton."""
+
+    def __init__(self, guard):
+        self.guard = guard
+        self.submitted = []
+
+    def run_job(self, job, dest):
+        job.validate()
+        self.guard.authorize(job.id, job.credits)
+        self.submitted.append(job.id)
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dur = float(job.payload.get("duration_seconds", job.payload.get("music_length_ms", 1000) / 1000
+                                    if job.kind == "music" else 1.2))
+        return ff.placeholder_tone(dest.with_suffix(".wav"), dur)
+
+
 def fake_downloader(url, dest):
     dest.parent.mkdir(parents=True, exist_ok=True)
     if dest.suffix == ".mp4":
@@ -43,16 +60,27 @@ def fake_downloader(url, dest):
 @requires_ffmpeg
 def test_simulated_paid_flow(episode, pricing, enabled_cfg, ledger, tmp_path):
     cfg = enabled_cfg
-    plan = build_plan(episode, pricing, profile="test", scenes="S07-S08")
+    plan = build_plan(episode, pricing, profile="test", scenes="S07-S08", include_music=True)
+    assert plan.providers == ["runway", "elevenlabs"]
     entry = reserve("sim-1", plan.total_eur(pricing, cfg), cfg, ledger)
     guard = SpendGuard(limit_eur=entry["reserved_eur"], pricing=pricing, cfg=cfg, log_path=tmp_path / "spend.json")
-    client = FakeClient(guard)
+    el_guard = SpendGuard(limit_eur=entry["reserved_eur"], pricing=pricing, cfg=cfg, provider="elevenlabs",
+                          log_path=tmp_path / "spend_elevenlabs.json")
+    guard.link(el_guard)
+    client, el_client = FakeClient(guard), FakeElevenLabs(el_guard)
 
-    manifest = paid_render(episode, plan, client, tmp_path, scenes="S07-S08", downloader=fake_downloader,
-                           log=lambda *_: None)
+    manifest = paid_render(episode, plan, {"runway": client, "elevenlabs": el_client}, tmp_path,
+                           scenes="S07-S08", downloader=fake_downloader, log=lambda *_: None)
 
-    assert client.submitted == [j.id for j in plan.jobs]
-    assert manifest["probe"]["duration"] == pytest.approx(10.5, abs=0.1)
+    assert client.submitted == [j.id for j in plan.jobs if j.provider == "runway"]
+    assert el_client.submitted == [j.id for j in plan.jobs if j.provider == "elevenlabs"]
+    assert {"TTS_D05", "TTS_D06", "SFX_outro_sting", "MUSIC_score"} <= set(el_client.submitted)
+    outro = episode.outro_duration
+    assert manifest["probe"]["duration"] == pytest.approx(10.5 + outro, abs=0.1)
+    assert manifest["loop_probe"]["duration"] == pytest.approx(10.5, abs=0.1)
+    assert manifest["music_source"] == "generated" and manifest["av_drift_s"] <= 0.1
+    assert guard.run_spent_eur == pytest.approx(guard.spent_eur + el_guard.spent_eur)
+    assert guard.run_spent_eur <= entry["reserved_eur"]
     assert manifest["probe"]["width"] == 1080 and manifest["probe"]["height"] == 1920
     assert guard.spent_eur <= entry["reserved_eur"]
     # Keyframes/Referenzen werden als JPEG-Data-URI (< 5 MB) weitergegeben, nicht als ablaufende URL
@@ -60,8 +88,10 @@ def test_simulated_paid_flow(episode, pricing, enabled_cfg, ledger, tmp_path):
     assert kf_ref.startswith("data:image/jpeg;base64,") and len(kf_ref) < 5 * 1024 * 1024
     assert client.payloads["VID_S07"]["promptImage"].startswith("data:image/jpeg;base64,")
 
-    e = finalize("sim-1", guard.spent_credits, pricing, cfg, ledger)
+    e = finalize("sim-1", guard.spent_credits, pricing, cfg, ledger, elevenlabs_credits=el_guard.spent_credits)
     assert e["status"] == "finalized"
+    assert e["spent_eur"] == pytest.approx(guard.run_spent_eur, abs=0.001)
+    assert e["elevenlabs_credits"] == el_guard.spent_credits
     assert remaining_eur(cfg, ledger) == pytest.approx(cfg.total_budget_eur - e["spent_eur"])
 
 

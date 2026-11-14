@@ -10,8 +10,9 @@ import zlib
 from dataclasses import asdict, dataclass, field
 from typing import Any
 
+from storyhouse import elevenlabs_spec as el_spec
 from storyhouse.budget import BudgetConfig, Pricing, with_margin
-from storyhouse.episode import Episode, _tags_in
+from storyhouse.episode import AUDIO_PROVIDERS, Episode, _tags_in
 from storyhouse.runway_spec import ENDPOINTS, snap_duration, supports_last_frame, validate_payload
 
 IMAGE_RATIO_9x16 = "1080:1920"
@@ -28,10 +29,21 @@ class Job:
     scene: str | None = None
     depends: list[str] = field(default_factory=list)
     ext: str = "bin"
+    provider: str = "runway"      # "runway" | "elevenlabs" – Credits sind je Anbieter eigene Einheiten
+    path: str | None = None       # nur ElevenLabs: Endpunkt inkl. voice_id
 
     @property
     def endpoint(self) -> str:
-        return ENDPOINTS[self.kind]
+        return self.path or ENDPOINTS[self.kind]
+
+    def validate(self) -> None:
+        """Prüft den Payload gegen die Spezifikation des jeweiligen Anbieters."""
+        if self.provider == "elevenlabs":
+            el_spec.validate_request(self.kind, self.path, self.payload)
+        elif self.provider == "runway":
+            validate_payload(self.kind, self.payload)
+        else:
+            raise ValueError(f"{self.id}: unbekannter Anbieter {self.provider}")
 
 
 @dataclass
@@ -41,19 +53,29 @@ class Plan:
     scenes: list[str]
     jobs: list[Job]
     loop_strategy: str = "ffmpeg_seam"
+    audio_provider: str | None = None
+    notes: list[str] = field(default_factory=list)
 
     @property
-    def total_credits(self) -> float:
-        return sum(j.credits for j in self.jobs)
+    def providers(self) -> list[str]:
+        return list(dict.fromkeys(j.provider for j in self.jobs))
+
+    def credits(self, provider: str) -> float:
+        """Credits eines Anbieters (Runway- und ElevenLabs-Credits nie addieren)."""
+        return sum(j.credits for j in self.jobs if j.provider == provider)
 
     def total_eur(self, pricing: Pricing, cfg: BudgetConfig) -> float:
-        return pricing.credits_to_eur(self.total_credits, cfg)
+        return round(sum(pricing.credits_to_eur(self.credits(p), cfg, p) for p in self.providers), 4)
 
-    def by_kind(self) -> dict[str, float]:
-        out: dict[str, float] = {}
+    def by_kind(self) -> dict[tuple[str, str], float]:
+        out: dict[tuple[str, str], float] = {}
         for j in self.jobs:
-            out[j.kind] = out.get(j.kind, 0.0) + j.credits
+            out[(j.provider, j.kind)] = out.get((j.provider, j.kind), 0.0) + j.credits
         return out
+
+    def required_secrets(self) -> tuple[str, ...]:
+        names = {"runway": "RUNWAYML_API_SECRET", "elevenlabs": "ELEVENLABS_API_KEY"}
+        return tuple(names[p] for p in self.providers)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -61,7 +83,9 @@ class Plan:
             "profile": self.profile,
             "scenes": self.scenes,
             "loop_strategy": self.loop_strategy,
-            "total_credits": self.total_credits,
+            "audio_provider": self.audio_provider,
+            "notes": self.notes,
+            "credits": {p: self.credits(p) for p in self.providers},
             "jobs": [asdict(j) for j in self.jobs],
         }
 
@@ -75,8 +99,14 @@ def _clean(text: str) -> str:
 
 
 def build_plan(ep: Episode, pricing: Pricing, profile: str = "test", scenes: str | None = "all",
-               include_audio: bool = True) -> Plan:
+               include_audio: bool = True, audio_provider: str | None = None,
+               include_music: bool = False) -> Plan:
+    """include_music: Musik-Job (Eleven Music) aufnehmen – nur nach bestätigter Lizenzprüfung."""
     prof = pricing.profile(profile)
+    audio_provider = audio_provider or ep.audio_provider
+    if audio_provider not in AUDIO_PROVIDERS:
+        raise ValueError(f"Unbekannter Ton-Anbieter {audio_provider}")
+    notes: list[str] = []
     selected = ep.select_scenes(scenes)
     sel_ids = [s["id"] for s in selected]
     style = ep.global_style
@@ -84,7 +114,7 @@ def build_plan(ep: Episode, pricing: Pricing, profile: str = "test", scenes: str
     loop_strategy = "ffmpeg_seam"
 
     def add(job: Job) -> None:
-        validate_payload(job.kind, job.payload)  # nichts verlässt den Plan, was die API ablehnt
+        job.validate()  # nichts verlässt den Plan, was die API ablehnt
         jobs.append(job)
 
     # 1) Referenzen (nur benötigte Tags)
@@ -156,57 +186,114 @@ def build_plan(ep: Episode, pricing: Pricing, profile: str = "test", scenes: str
                 credits=pricing.video_credits(model, duration), depends=depends, payload=payload))
 
     if include_audio:
-        # 4) Dialog
-        for line in ep.dialogue:
-            if line["scene"] not in sel_ids:
-                continue
-            voice = ep.characters[line["character"]]["voice"]
-            model = voice.get("model", prof["tts_model"])
-            text = line.get("tts_text") or line["text"]
-            payload = {"model": model, "promptText": text,
-                       "voice": {"type": "runway-preset", "presetId": voice["preset_id"]}}
-            if model == "eleven_v3":
-                payload["languageCode"] = "en"
-            add(Job(id=f"TTS_{line['id']}", kind="tts", model=model, scene=line["scene"], ext="mp3",
-                    credits=pricing.tts_credits(model, text), payload=payload))
-        # 5) Soundeffekte & Drones (nur für gewählte Szenen-Zeitfenster)
+        # Zeitfenster der gewählten Szenen; Outro-Sting gehört immer dazu
         windows = [(float(s["start"]), float(s["start"]) + float(s["duration"])) for s in selected]
-        model = prof["sfx_model"]
+        sounds = []
         for item in list(ep.sound.get("drones", [])) + list(ep.sound.get("sfx", [])):
             at = float(item.get("at", 0.0))
             end = at + float(item["duration"])
-            if not any(at < w_end and end > w_start for w_start, w_end in windows):
-                continue
-            add(Job(
-                id=f"SFX_{item['id']}", kind="sfx", model=model, ext="mp3",
-                credits=pricing.sfx_credits(model, float(item["duration"])),
-                payload={"model": model, "promptText": _clean(item["prompt"]),
-                         "duration": float(item["duration"]), "loop": bool(item.get("loop", False))},
-            ))
+            if any(at < w_end and end > w_start for w_start, w_end in windows):
+                sounds.append(item)
+        sting = (ep.outro or {}).get("sting")
+        if sting:
+            sounds.append({"id": "outro_sting", "prompt": sting["prompt"], "duration": sting["duration"]})
+        lines = [line for line in ep.dialogue if line["scene"] in sel_ids]
 
-    return Plan(episode_slug=ep.slug, profile=profile, scenes=sel_ids, jobs=jobs, loop_strategy=loop_strategy)
+        if audio_provider == "elevenlabs":
+            # 4) Dialog – ElevenLabs Text to Speech
+            for line in lines:
+                voice = ep.characters[line["character"]]["voice"]
+                model = voice.get("model") or pricing.elevenlabs_model("tts")
+                text = line.get("tts_text") or line["text"]
+                body: dict[str, Any] = {"text": text, "model_id": model,
+                                        "voice_settings": {"stability": float(voice.get("stability", 0.5))},
+                                        "seed": _seed(f"tts-{line['id']}")}
+                if el_spec.TTS_MODELS.get(model, {}).get("language_code"):
+                    body["language_code"] = "en"
+                add(Job(id=f"TTS_{line['id']}", kind="tts", model=model, scene=line["scene"], ext="mp3",
+                        provider="elevenlabs", path=el_spec.tts_path(str(voice.get("voice_id", ""))),
+                        credits=pricing.el_tts_credits(model, text), payload=body))
+            # 5) Soundeffekte & Drones – ElevenLabs Sound Effects (Dauer immer fest)
+            model = pricing.elevenlabs_model("sfx")
+            for item in sounds:
+                add(Job(
+                    id=f"SFX_{item['id']}", kind="sfx", model=model, ext="mp3",
+                    provider="elevenlabs", path=el_spec.SFX_PATH,
+                    credits=pricing.el_sfx_credits(model, float(item["duration"])),
+                    payload={"text": _clean(item["prompt"]), "model_id": model,
+                             "duration_seconds": float(item["duration"]), "loop": bool(item.get("loop", False)),
+                             "prompt_influence": 0.3},
+                ))
+            # 6) Musik – Eleven Music (nur nach bestätigter Lizenzprüfung)
+            gen = ep.music_generate
+            if gen and include_music:
+                model = pricing.elevenlabs_model("music")
+                length_ms = max(3000, int(round(sum(float(s["duration"]) for s in selected) * 1000)))
+                add(Job(
+                    id="MUSIC_score", kind="music", model=model, ext="mp3",
+                    provider="elevenlabs", path=el_spec.MUSIC_PATH,
+                    credits=pricing.el_music_credits(model, length_ms / 1000.0),
+                    payload={"prompt": _clean(gen["prompt"]), "model_id": model,
+                             "music_length_ms": length_ms, "force_instrumental": True},
+                ))
+            elif gen:
+                notes.append("Musik (Eleven Music) nicht im Plan: erst nach Lizenzprüfung "
+                             "(config/budget.yaml elevenlabs.music_license_confirmed) – Drone dient als Musikbett.")
+        else:
+            # Ausweichweg: Ton über Runways Proxy-Endpunkte
+            for line in lines:
+                voice = ep.characters[line["character"]]["voice"]
+                model = voice.get("model", prof["tts_model"])
+                text = line.get("tts_text") or line["text"]
+                payload = {"model": model, "promptText": text,
+                           "voice": {"type": "runway-preset", "presetId": voice["preset_id"]}}
+                if model == "eleven_v3":
+                    payload["languageCode"] = "en"
+                add(Job(id=f"TTS_{line['id']}", kind="tts", model=model, scene=line["scene"], ext="mp3",
+                        credits=pricing.tts_credits(model, text), payload=payload))
+            model = prof["sfx_model"]
+            for item in sounds:
+                add(Job(
+                    id=f"SFX_{item['id']}", kind="sfx", model=model, ext="mp3",
+                    credits=pricing.sfx_credits(model, float(item["duration"])),
+                    payload={"model": model, "promptText": _clean(item["prompt"]),
+                             "duration": float(item["duration"]), "loop": bool(item.get("loop", False))},
+                ))
+            if ep.music_generate:
+                notes.append("Musik: über Runway nicht bepreist/gesperrt – Drone dient als Musikbett.")
+
+    return Plan(episode_slug=ep.slug, profile=profile, scenes=sel_ids, jobs=jobs, loop_strategy=loop_strategy,
+                audio_provider=audio_provider if include_audio else None, notes=notes)
 
 
 def format_estimate(plan: Plan, pricing: Pricing, cfg: BudgetConfig) -> str:
     eur = plan.total_eur(pricing, cfg)
     lines = [
         f"Kostenschätzung – {plan.episode_slug} | Profil: {plan.profile} | Szenen: {', '.join(plan.scenes)} "
-        f"| Loop: {plan.loop_strategy}",
+        f"| Loop: {plan.loop_strategy} | Ton: {plan.audio_provider or 'ohne'}",
         "",
-        "| Jobart | Anzahl | Credits | EUR (konservativ, inkl. USt.) |",
-        "|---|---:|---:|---:|",
+        "| Anbieter | Jobart | Anzahl | Credits (anbietereigen) | EUR (konservativ, inkl. USt.) |",
+        "|---|---|---:|---:|---:|",
     ]
-    counts: dict[str, int] = {}
+    counts: dict[tuple[str, str], int] = {}
     for j in plan.jobs:
-        counts[j.kind] = counts.get(j.kind, 0) + 1
-    for kind, cr in plan.by_kind().items():
-        lines.append(f"| {kind} | {counts[kind]} | {cr:.0f} | {pricing.credits_to_eur(cr, cfg):.2f} € |")
+        counts[(j.provider, j.kind)] = counts.get((j.provider, j.kind), 0) + 1
+    for (provider, kind), cr in plan.by_kind().items():
+        lines.append(f"| {provider} | {kind} | {counts[(provider, kind)]} | {cr:.0f} | "
+                     f"{pricing.credits_to_eur(cr, cfg, provider):.2f} € |")
+    for provider in plan.providers:
+        lines.append(f"| **{provider} gesamt** | | | **{plan.credits(provider):.0f}** | "
+                     f"**{pricing.credits_to_eur(plan.credits(provider), cfg, provider):.2f} €** |")
     lines += [
-        f"| **Summe** | {len(plan.jobs)} | **{plan.total_credits:.0f}** | **{eur:.2f} €** |",
+        f"| **Summe** | | {len(plan.jobs)} | | **{eur:.2f} €** |",
         "",
         f"Mit Sicherheitsaufschlag ({cfg.safety_margin:.0%}): **{with_margin(eur, cfg):.2f} €** "
         f"· Lauf-Limit {cfg.max_per_run_eur:.2f} € · Gesamtbudget {cfg.total_budget_eur:.2f} € "
         f"· Annahmen: 1 USD = {cfg.eur_per_usd:.2f} €, USt. {cfg.vat_rate:.0%}, Preise geprüft am "
         f"{pricing.verified_on()}",
     ]
+    if "elevenlabs" in plan.providers:
+        lines.append("ElevenLabs-Credits werden aus dem Kontingent eures Kontos verbraucht; die Abo-Gebühr "
+                     "selbst ist hier nicht enthalten.")
+    lines += [f"Hinweis: {n}" for n in plan.notes]
     return "\n".join(lines)

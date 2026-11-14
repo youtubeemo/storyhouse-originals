@@ -25,6 +25,10 @@ format:
   loudness_lufs: -14.0
   true_peak_db: -1.0
 
+# Tonquelle: elevenlabs (direkt, Secret ELEVENLABS_API_KEY) oder runway (Ausweichweg).
+audio:
+  provider: elevenlabs
+
 look:
   global_style: >
     Photorealistic cinematic film still, shot on ARRI Alexa 35 with a 40mm
@@ -51,9 +55,13 @@ characters:
       neutral expression, soft frontal key light, plain dark grey background,
       85mm lens, ultra-detailed natural skin texture.
     voice:
-      provider: runway
       model: eleven_v3
-      preset_id: Maya
+      # ElevenLabs-Standardstimme "Sarah" (jung, weich, US-Englisch). Der Preflight prüft
+      # kostenlos, ob die Stimme im Konto verfügbar ist. Zum Umbesetzen nur die ID ändern.
+      voice_id: EXAVITQu4vr4xnSDxMaL
+      voice_name: Sarah
+      stability: 0.5         # eleven_v3: 0.0 Creative · 0.5 Natural · 1.0 Robust
+      preset_id: Maya        # nur für --audio-provider runway
       direction: "breathy, frightened, close-mic, American English"
   reflection:
     name: THE REFLECTION
@@ -62,9 +70,11 @@ characters:
       Maya's mirror image — identical, but stiller and more deliberate.
       Eyes slightly wet and urgent. Moves a fraction of a second out of sync.
     voice:
-      provider: runway
       model: eleven_v3
-      preset_id: Maya        # gleiche Stimme, in der Post entfremdet
+      voice_id: EXAVITQu4vr4xnSDxMaL   # gleiche Stimme, in der Post entfremdet
+      voice_name: Sarah
+      stability: 0.5
+      preset_id: Maya
       direction: "intimate whisper, urgent, slightly hollow"
       fx: mirror_voice       # siehe sound_design.voice_fx
   the_other:
@@ -74,8 +84,10 @@ characters:
       The thing that steps out of the mirror wearing Maya's face. Calm,
       faint smile. Tell: the eyebrow scar is on the RIGHT side (mirrored).
     voice:
-      provider: runway
       model: eleven_v3
+      voice_id: EXAVITQu4vr4xnSDxMaL
+      voice_name: Sarah
+      stability: 0.5
       preset_id: Maya
       direction: "soft, warm, almost kind — deeply wrong"
       fx: other_voice
@@ -346,7 +358,7 @@ dialogue:
     loop_bridge: true
 
 # ---------------------------------------------------------------------
-# SOUND DESIGN – Prompts für Runway sound_effect (eleven_text_to_sound_v2)
+# SOUND DESIGN – Prompts für ElevenLabs Sound Effects (eleven_text_to_sound_v2)
 # at = absolute Startzeit; gain in dB.
 # ---------------------------------------------------------------------
 sound_design:
@@ -354,9 +366,23 @@ sound_design:
     mirror_voice: "highpass=f=180,lowpass=f=7000,aecho=0.6:0.5:35|70:0.25|0.15,volume=1.4"
     other_voice: "highpass=f=120,aecho=0.5:0.4:20:0.15,volume=1.2"
   music:
-    file: assets/music/ep01_score.wav   # optional, lizenzierte Musik; sonst Drone-Fallback
+    # Reihenfolge: 1) lizenzierte Datei (falls vorhanden)  2) Eleven Music (falls freigegeben)
+    #              3) nur Drone als Musikbett
+    file: assets/music/ep01_score.wav
     bed_gain_db: -16
     duck_under_dialogue: true
+    generate:
+      enabled: true
+      # Eleven Music: keine Künstler-/Songnamen, keine Songtexte im Prompt (Music Terms).
+      prompt: >
+        Dark minimal psychological thriller underscore for a short film.
+        Very slow tempo around 60 BPM, instrumental, no drums except a soft low
+        heartbeat-like pulse entering after fifteen seconds. Cold sustained high
+        string harmonics, detuned felt piano notes with long reverb, deep sub
+        bass, rising tension, one dissonant orchestral swell near thirty
+        seconds, then collapsing back to a quiet low drone. Uneasy, intimate,
+        cinematic, no melody hook, no vocals.
+      seam_fade_s: 0.4     # kurzes Ein-/Ausblenden NUR der Musik, damit die Loop-Naht nicht knackt
   drones:
     - id: drone_main
       prompt: "Dark cinematic sub-bass drone, slow evolving, horror film tension, seamless loop"
@@ -400,3 +426,22 @@ subtitles:
   margin_lr: 140
   min_display_s: 1.0
   chars_per_second: 15
+
+# ---------------------------------------------------------------------
+# OUTRO – StoryHouse-Karte nach dem Film (FFmpeg, kostenlos).
+# Die Hauptdatei endet mit dem Outro; zusätzlich entsteht eine Loop-Fassung
+# ohne Outro (letzter Frame == erster Frame) für nahtloses Autoplay.
+# ---------------------------------------------------------------------
+outro:
+  enabled: true
+  duration_s: 2.5
+  title: "STORYHOUSE"
+  subtitle: "O R I G I N A L S"
+  tagline: "THE OTHER SIDE  ·  EPISODE 01"
+  background: "0x05080a"
+  text_colour: "0xf2f2f2"
+  fade_s: 0.4
+  sting:
+    prompt: "Short dark cinematic logo sting, deep sub boom with a cold reversed piano swell, horror film ident"
+    duration: 2.5
+    gain_db: -10

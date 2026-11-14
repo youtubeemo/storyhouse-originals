@@ -21,7 +21,8 @@ for f in "$src"/*.mp4 "$src"/*.srt "$src"/*.ass; do
   count=$((count + 1))
 done
 # Unkritische Protokolle (keine Inhalte, keine URLs) unverschlüsselt
-for f in "$src"/spend.json "$src"/balance.json; do
+for f in "$src"/spend.json "$src"/spend_elevenlabs.json "$src"/balance.json \
+         "$src"/elevenlabs_usage.json "$src"/manifest.json; do
   [ -f "$f" ] && cp "$f" "$dst/"
 done
 echo "$count Datei(en) verschlüsselt nach $dst"

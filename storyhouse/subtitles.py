@@ -14,7 +14,9 @@ class Cue:
     text: str
 
 
-def build_cues(ep: Episode) -> list[Cue]:
+def build_cues(ep: Episode, spoken: dict[str, float] | None = None) -> list[Cue]:
+    """spoken: tatsächliche Sprechdauer je Dialog-ID (aus dem fertigen Ton). Damit bleibt
+    der Untertitel so lange stehen, wie wirklich gesprochen wird – nie kürzer als lesbar."""
     style = ep.subtitle_style
     min_disp = float(style.get("min_display_s", 1.0))
     cps = float(style.get("chars_per_second", 15))
@@ -24,6 +26,8 @@ def build_cues(ep: Episode) -> list[Cue]:
         start = float(line["at"])
         text = str(line["text"]).strip()
         wanted = max(min_disp, len(text) / cps + 0.4)
+        if spoken and line["id"] in spoken:
+            wanted = max(wanted, float(spoken[line["id"]]) + 0.25)
         hard_end = float(lines[i + 1]["at"]) - 0.05 if i + 1 < len(lines) else ep.duration
         end = min(start + wanted, hard_end, ep.duration)
         if line.get("loop_bridge"):
@@ -77,9 +81,9 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
     return header + "\n".join(events) + "\n"
 
 
-def write_subtitles(ep: Episode, out_dir: Path) -> tuple[Path, Path]:
+def write_subtitles(ep: Episode, out_dir: Path, spoken: dict[str, float] | None = None) -> tuple[Path, Path]:
     out_dir.mkdir(parents=True, exist_ok=True)
-    cues = build_cues(ep)
+    cues = build_cues(ep, spoken)
     srt = out_dir / f"{ep.slug}.srt"
     ass = out_dir / f"{ep.slug}.ass"
     srt.write_text(to_srt(cues), encoding="utf-8")
