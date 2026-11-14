@@ -3,17 +3,21 @@
   "entries": [
     {
       "run_id": "run-43644685502-1",
-      "status": "reserved",
+      "status": "finalized",
       "created_utc": "2026-11-14T21:49:59Z",
       "estimate_eur": 0.84,
       "reserved_eur": 1.04,
-      "spent_eur": 0.0,
-      "spent_credits": 0.0,
+      "spent_eur": 0.6464,
+      "spent_credits": 38.0,
       "profile": "test",
       "scenes": [
         "S01"
       ],
-      "jobs": 10
+      "jobs": 10,
+      "elevenlabs_credits": 816.0,
+      "elevenlabs_eur": 0.1942,
+      "finalized_utc": "2026-11-14T21:51:53Z",
+      "balance_delta_credits": 38.0
     }
   ]
 }
