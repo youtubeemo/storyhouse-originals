@@ -238,6 +238,7 @@ def _dispatch(args: argparse.Namespace) -> int:
                            log_path=out / "spend.json")
         client = RunwayClient(os.environ["RUNWAYML_API_SECRET"], guard)
         clients: dict = {"runway": client}
+        private_only = False
         el_client, el_usage = None, {}
         if uses_el:
             from storyhouse.elevenlabs import ElevenLabsClient
@@ -247,7 +248,11 @@ def _dispatch(args: argparse.Namespace) -> int:
             guard.link(el_guard)  # ein gemeinsames Euro-Limit für beide Anbieter
             el_client = ElevenLabsClient(os.environ["ELEVENLABS_API_KEY"], el_guard)
             clients["elevenlabs"] = el_client
-            _elevenlabs_check(plan, pricing, cfg, ep)  # Konto unmittelbar vor dem Start erneut prüfen
+            el_info = _elevenlabs_check(plan, pricing, cfg, ep)  # Konto unmittelbar vor dem Start erneut prüfen
+            private_only = not el_info["commercial_license"]
+            if private_only:
+                _summary("🔒 ElevenLabs Free-Tarif: Ergebnis ist ein **privater, nicht kommerzieller Test** – "
+                         "nicht veröffentlichen, nicht monetarisieren, nicht verbreiten.")
             el_usage["before"] = el_client.used_credits()
         balance = {"before": client.credit_balance()}
         if balance["before"] is None:
@@ -256,7 +261,7 @@ def _dispatch(args: argparse.Namespace) -> int:
             raise BudgetError(f"Runway-Guthaben {balance['before']:.0f} < benötigt {plan.credits("runway"):.0f} Credits")
         out.mkdir(parents=True, exist_ok=True)
         try:
-            manifest = paid_render(ep, plan, clients, out, scenes=args.scenes)
+            manifest = paid_render(ep, plan, clients, out, scenes=args.scenes, private_only=private_only)
         finally:
             balance["after"] = client.credit_balance()
             (out / "balance.json").write_text(json.dumps(balance), encoding="utf-8")

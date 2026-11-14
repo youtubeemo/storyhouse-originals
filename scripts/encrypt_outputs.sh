@@ -15,7 +15,7 @@ dst="${2:?Zielordner}"
 mkdir -p "$dst"
 shopt -s nullglob
 count=0
-for f in "$src"/*.mp4 "$src"/*.srt "$src"/*.ass; do
+for f in "$src"/*.mp4 "$src"/*.srt "$src"/*.ass "$src"/LIZENZ_*.txt; do
   openssl enc -aes-256-cbc -pbkdf2 -iter 600000 -salt \
     -in "$f" -out "$dst/$(basename "$f").enc" -pass env:ARTIFACT_PASSPHRASE
   count=$((count + 1))

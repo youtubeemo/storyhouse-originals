@@ -387,7 +387,8 @@ def build_mix_command(tracks: Sequence[Track], duration: float, out: Path,
 # Finaler Export
 # ---------------------------------------------------------------------
 def finalize(video: Path, audio: Path, ass: Path | None, out: Path, duration: float, grade: bool = True,
-             outro: Path | None = None, outro_duration: float = 0.0) -> Path:
+             outro: Path | None = None, outro_duration: float = 0.0,
+             metadata: dict[str, str] | None = None) -> Path:
     """Grading + eingebrannte Untertitel + Ton in EINEM Encode; optional Outro-Karte angehängt.
 
     video/ass decken den Film ab (duration); audio muss duration + outro_duration lang sein.
@@ -411,6 +412,7 @@ def finalize(video: Path, audio: Path, ass: Path | None, out: Path, duration: fl
         "-t", f"{total:.3f}",
         "-c:v", "libx264", "-preset", "veryfast", "-crf", "18", "-profile:v", "high",
         "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "192k", "-ar", "48000",
+        *[arg for k, v in (metadata or {}).items() for arg in ("-metadata", f"{k}={v}")],
         "-movflags", "+faststart", str(out),
     ])
     return out

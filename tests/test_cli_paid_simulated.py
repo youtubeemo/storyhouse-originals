@@ -250,3 +250,61 @@ def test_missing_elevenlabs_permission_stops_before_runway_spends(assets, tmp_pa
     entry = Ledger.load(ledger).entry("deny")
     assert entry["status"] == "finalized" and entry["spent_eur"] == 0
     assert "permission" in entry.get("note", "")
+
+
+@requires_ffmpeg
+def test_private_test_with_free_tier_account(assets, tmp_path, monkeypatch):
+    """Free-Konto + Repo-Konfiguration: Lauf gelingt, Ergebnis ist überall als privater Test markiert."""
+    net = FakeInternet(assets)
+    real = net.__call__
+
+    def free(req, timeout=None):
+        resp = real(req, timeout)
+        if not isinstance(req, str) and req.full_url.endswith("/v1/user/subscription"):
+            data = json.loads(resp.getvalue())
+            data.update({"tier": "free", "status": "free", "character_limit": 10000})
+            return FakeResponse(json.dumps(data).encode())
+        return resp
+
+    monkeypatch.setattr("urllib.request.urlopen", free)
+    _paid_env(monkeypatch)
+    ledger, out = tmp_path / "ledger.json", tmp_path / "render"
+    common = ["--profile", "test", "--scenes", "S01", "--ledger", str(ledger), "--run-id", "priv", "--out", str(out)]
+    for cmd in ("preflight", "reserve", "render", "finalize"):
+        assert main([cmd, *common]) == 0, cmd
+
+    manifest = json.loads((out / "manifest.json").read_text())
+    assert manifest["license"] == {"elevenlabs_commercial": False, "usage": "privat, nicht kommerziell"}
+    video, loop = Path(manifest["video"]), Path(manifest["loop_video"])
+    assert video.name == "tos-ep01-the-reflection_test_PRIVAT.mp4"
+    assert loop.name == "tos-ep01-the-reflection_test_PRIVAT_loop.mp4"
+    import subprocess
+    for f in (video, loop):
+        tags = json.loads(subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format_tags", "-of", "json",
+                                          str(f)], capture_output=True, text=True, check=True).stdout)
+        assert "PRIVATER TEST" in tags["format"]["tags"]["comment"]
+    assert "Nicht hochladen" in (out / "LIZENZ_PRIVATER_TEST.txt").read_text()
+    assert not any(p["path"] == "/v1/music" for p in net.el_posts)
+
+    # Verschlüsselung erfasst Film, Loop-Fassung und Lizenzhinweis
+    import os
+    enc = tmp_path / "enc"
+    subprocess.run(["bash", str(ROOT / "scripts" / "encrypt_outputs.sh"), str(out), str(enc)],
+                   env={**os.environ, "ARTIFACT_PASSPHRASE": PASSPHRASE}, check=True, capture_output=True)
+    names = {p.name for p in enc.iterdir()}
+    assert {"tos-ep01-the-reflection_test_PRIVAT.mp4.enc", "tos-ep01-the-reflection_test_PRIVAT_loop.mp4.enc",
+            "LIZENZ_PRIVATER_TEST.txt.enc"} <= names
+    assert not any(n.endswith(".mp4") for n in names), "kein unverschlüsseltes Video"
+
+
+def test_free_tier_refused_beyond_private_scope(tmp_path, monkeypatch):
+    """Szenen/Profile außerhalb des privaten Testumfangs: Abbruch ohne Netz."""
+    import socket
+
+    def no_network(*a, **k):
+        raise AssertionError("keine Verbindung erlaubt")
+
+    monkeypatch.setattr(socket.socket, "connect", no_network)
+    _paid_env(monkeypatch)
+    for extra in (["--profile", "final", "--scenes", "S01"], ["--profile", "test", "--scenes", "S01-S02"]):
+        assert main(["preflight", *extra, "--ledger", str(tmp_path / "l.json")]) == 2

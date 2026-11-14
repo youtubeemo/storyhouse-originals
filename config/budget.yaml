@@ -54,8 +54,16 @@ approval_phrase: "ICH GEBE DIESEN RENDER FREI"
 elevenlabs:
   # Der Free-Tarif enthält KEINE kommerzielle Lizenz (Namensnennung nötig,
   # keine Monetarisierung). Solange true, verweigert der Preflight bezahlte
-  # Läufe auf einem Free-Konto. Nur für rein private Tests per PR auf false.
-  require_commercial_license: true
+  # Läufe auf einem Free-Konto.
+  # Auf false gesetzt per PR (14.11.2026): Free-Tarif NUR für einen privaten,
+  # nicht kommerziellen Testfilm. Der Code erzwingt dann zusätzlich:
+  #   - paid_scope.profiles darf nur "test" enthalten (kein final)
+  #   - jede Ausgabedatei wird als "PRIVATER TEST – nicht kommerziell, nicht zur
+  #     Veröffentlichung" gekennzeichnet (Dateiname, MP4-Metadaten, manifest.json)
+  #   - Ergebnisse weiterhin nur verschlüsselt als Workflow-Artefakt, nie veröffentlicht
+  # Für eine Veröffentlichung: Material mit bezahltem Tarif NEU generieren und
+  # diesen Wert wieder auf true setzen.
+  require_commercial_license: false
   # Musik wird erst generiert, wenn die Produktion die Eleven-Music-Bedingungen
   # (elevenlabs.io/music-terms) für diesen Verwendungszweck geprüft hat und das
   # hier per PR bestätigt. Bis dahin: Drone-Musikbett (Soundeffekt) als Ersatz.

@@ -21,6 +21,21 @@ def test_repository_config_is_safe_by_default(cfg):
         assert cfg.scope_audio_providers == ("elevenlabs",)
         assert cfg.el_music_license_confirmed is False, "Musik bleibt gesperrt"
     assert cfg.max_per_run_eur == 25.0
+    assert cfg.total_budget_eur == 200.0 and cfg.safety_margin == 0.25 and cfg.vat_rate == 0.19
+
+
+def test_free_tier_only_for_private_test_scope(cfg):
+    """Ohne kommerzielle Lizenz: nur Testprofil und ausdrücklich aufgezählte Szenen."""
+    from dataclasses import replace
+
+    assert cfg.el_require_commercial_license is False, "Repo: Free-Tarif für privaten Test freigegeben"
+    assert cfg.scope_profiles == ("test",) and cfg.scope_scenes == ("S01",)
+    for bad in ({"scope_profiles": ("test", "final")}, {"scope_profiles": ("final",)},
+                {"scope_profiles": None}, {"scope_scenes": ("all",)}, {"scope_scenes": None}):
+        with pytest.raises(BudgetError, match="require_commercial_license"):
+            replace(cfg, **bad).validate()
+    # Mit kommerzieller Lizenzpflicht darf der Umfang später erweitert werden
+    replace(cfg, el_require_commercial_license=True, scope_profiles=("test", "final"), scope_scenes=("all",)).validate()
     assert cfg.total_budget_eur == 200.0 <= HARD_CEILING_EUR
     assert cfg.max_per_run_eur <= cfg.total_budget_eur
     assert cfg.vat_rate >= 0.19

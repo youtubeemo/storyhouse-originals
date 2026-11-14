@@ -41,7 +41,7 @@ def _dialogue_slots(ep: Episode) -> dict[str, float]:
 
 def assemble(ep: Episode, clips: dict[str, Path], dialogue_audio: dict[str, Path],
              sfx_audio: dict[str, Path], out_dir: Path, width: int, height: int, fps: int,
-             tag: str, music_audio: Path | None = None) -> dict:
+             tag: str, music_audio: Path | None = None, metadata: dict[str, str] | None = None) -> dict:
     """Gemeinsamer Endschnitt für Dry-Run und echten Render.
 
     Ergebnis: <slug>_<tag>.mp4 (Film + Outro) und, falls ein Outro aktiv ist,
@@ -103,17 +103,18 @@ def assemble(ep: Episode, clips: dict[str, Path], dialogue_audio: dict[str, Path
                     "music_source": music_source, "tracks": len(tracks), "sync": sync, "outro": bool(ep.outro)}
     if ep.outro:
         loop_file = out_dir / f"{ep.slug}_{tag}_loop.mp4"
-        ff.finalize(picture, mix, ass, loop_file, ep.duration)
+        ff.finalize(picture, mix, ass, loop_file, ep.duration, metadata=metadata)
         outro_s = ep.outro_duration
         card = ff.outro_clip(ep.outro, work / "outro.mp4", width, height, fps)
         sting_cfg = ep.outro.get("sting") or {}
         tail = ff.outro_audio(sfx_audio.get("outro_sting"), work / "outro.wav", outro_s,
                               float(sting_cfg.get("gain_db", -10)))
         full_mix = ff.concat_audio([mix, tail], work / "mix_full.wav")
-        ff.finalize(picture, full_mix, ass, final, ep.duration, outro=card, outro_duration=outro_s)
+        ff.finalize(picture, full_mix, ass, final, ep.duration, outro=card, outro_duration=outro_s,
+                    metadata=metadata)
         result.update({"loop_video": str(loop_file), "loop_probe": ff.probe(loop_file)})
     else:
-        ff.finalize(picture, mix, ass, final, ep.duration)
+        ff.finalize(picture, mix, ass, final, ep.duration, metadata=metadata)
     info = ff.probe(final)
     drift = None
     if info.get("video_duration") and info.get("audio_duration"):
@@ -161,8 +162,13 @@ def dry_run(ep_full: Episode, out_dir: Path, pricing: Pricing, cfg: BudgetConfig
     return manifest
 
 
+PRIVATE_NOTICE = ("PRIVATER TEST - nicht kommerziell, nicht zur Veroeffentlichung. "
+                  "Ton: ElevenLabs Free-Tarif (elevenlabs.io), keine kommerzielle Lizenz.")
+
+
 def paid_render(ep_full: Episode, plan: Plan, client, out_dir: Path, scenes: str = "all",
-                downloader: Callable[[str, Path], Path] | None = None, log: Callable[[str], None] = print) -> dict:
+                downloader: Callable[[str, Path], Path] | None = None, log: Callable[[str], None] = print,
+                private_only: bool = False) -> dict:
     """Führt einen freigegebenen Plan aus. Budgetprüfungen erfolgen in den Clients (SpendGuard).
 
     client: ein Runway-Client oder {"runway": ..., "elevenlabs": ...}.
@@ -204,10 +210,18 @@ def paid_render(ep_full: Episode, plan: Plan, client, out_dir: Path, scenes: str
     dia = {d["id"]: files[f"TTS_{d['id']}"] for d in ep.dialogue if f"TTS_{d['id']}" in files}
     sfx = {k[4:]: v for k, v in files.items() if k.startswith("SFX_")}
     w, h, r = _dims(ep, None, None, None)
-    result = assemble(ep, clips, dia, sfx, out_dir, w, h, r, tag=f"{plan.profile}",
-                      music_audio=files.get("MUSIC_score"))
+    tag = f"{plan.profile}_PRIVAT" if private_only else f"{plan.profile}"
+    metadata = {"comment": PRIVATE_NOTICE, "copyright": "nicht kommerziell - privater Test"} if private_only else None
+    result = assemble(ep, clips, dia, sfx, out_dir, w, h, r, tag=tag,
+                      music_audio=files.get("MUSIC_score"), metadata=metadata)
+    if private_only:
+        (out_dir / "LIZENZ_PRIVATER_TEST.txt").write_text(
+            PRIVATE_NOTICE + "\nNicht hochladen, nicht monetarisieren, nicht verbreiten. Für eine Veröffentlichung "
+            "das Material mit einem bezahlten ElevenLabs-Tarif neu generieren.\n", encoding="utf-8")
     manifest = {"mode": "paid-render", "profile": plan.profile, "scenes": plan.scenes,
                 "audio_provider": plan.audio_provider,
+                "license": {"elevenlabs_commercial": not private_only,
+                            "usage": "privat, nicht kommerziell" if private_only else "kommerziell (bezahlter Tarif)"},
                 "paid_api_calls": len(plan.jobs), "elapsed_s": round(time.time() - started, 1), **result}
     (out_dir / "manifest.json").write_text(json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8")
     return manifest

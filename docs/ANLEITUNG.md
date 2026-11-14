@@ -87,6 +87,8 @@ Der Dry-Run-Job sieht keine Secrets und keine Umgebung. Hinweis: Im öffentliche
 4. Bedarf: ein kompletter Lauf verbraucht rund 3.200 Credits (mit Musik rund 3.800). Test S01 + Test komplett + Final komplett ≈ 8.600 Credits.
 5. Stimme vorher im ElevenLabs-Dashboard anhören: „Sarah“ (`EXAVITQu4vr4xnSDxMaL`). Umbesetzen = `voice_id` in `episode.yaml` ändern.
 
+**Privater Test mit Free-Tarif (aktuell aktiv):** `elevenlabs.require_commercial_license: false` erlaubt das Free-Konto – aber nur, solange `paid_scope` auf `profiles: [test]` und einzeln aufgezählte Szenen begrenzt ist (sonst lehnt die Pipeline die Konfiguration ab). Ergebnisse heißen dann `…_test_PRIVAT.mp4`, tragen in den MP4-Metadaten den Hinweis „PRIVATER TEST – nicht kommerziell“ und kommen mit `LIZENZ_PRIVATER_TEST.txt`. Nicht hochladen, nicht monetarisieren, nicht weitergeben; für eine Veröffentlichung mit bezahltem Tarif neu generieren. Der Free-Tarif hat 10.000 Credits pro Monat, S01 braucht rund 1.600 (mit Puffer rund 2.000).
+
 ### 4.3 GitHub (dein Repo ist öffentlich → Required Reviewers sind in jedem Tarif verfügbar)
 1. **Settings → Environments → New environment** → `paid-render`
    - **Required reviewers:** dich selbst. „Prevent self-review“ **aus** lassen, sonst kannst du als einzige Person nie freigeben.
