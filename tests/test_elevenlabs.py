@@ -301,8 +301,9 @@ def test_usage_based_billing_blocks_run(cfg, ext):
 
 def test_free_tier_blocked_for_commercial_use(cfg):
     free = {**SUB, "tier": "free", "status": "free", "character_limit": 10000}
+    commercial = replace(cfg, el_require_commercial_license=True)
     with pytest.raises(ApprovalError, match="kommerzielle Lizenz"):
-        check_subscription(free, 100, cfg)
+        check_subscription(free, 100, commercial)
     private = replace(cfg, el_require_commercial_license=False)
     assert check_subscription(free, 100, private)["commercial_license"] is False
     with pytest.raises(ApprovalError, match="Eleven Music"):

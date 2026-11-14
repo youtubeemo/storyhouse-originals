@@ -118,6 +118,18 @@ class BudgetConfig:
             raise BudgetError("eur_per_usd unter 0.85 ist nicht konservativ genug")
         if self.vat_rate < 0.19:
             raise BudgetError("vat_rate muss mindestens 0.19 (deutsche USt.) betragen")
+        if self.paid_rendering_enabled and not self.el_require_commercial_license:
+            # Free-Tarif ohne kommerzielle Lizenz: nur private Testläufe in engem Umfang.
+            if self.scope_profiles is None or set(self.scope_profiles) != {"test"}:
+                raise BudgetError(
+                    "elevenlabs.require_commercial_license: false ist nur mit paid_scope.profiles: [test] erlaubt "
+                    "(privater, nicht kommerzieller Test)"
+                )
+            if self.scope_scenes is None or "all" in self.scope_scenes:
+                raise BudgetError(
+                    "elevenlabs.require_commercial_license: false ist nur mit ausdrücklich aufgezählten Szenen "
+                    "in paid_scope.scenes erlaubt"
+                )
         if len(self.approval_phrase.strip()) < 10:
             raise BudgetError("approval_phrase zu kurz")
 
