@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!-- Keine Netzwerkverbindungen, keine fremden Skripte: Passphrase und Film verlassen das Gerät nie. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; media-src blob:; img-src 'self' data:; connect-src 'none'; form-action 'none'; base-uri 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex, nofollow">
+<title>StoryHouse – Film ansehen</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+  <header>
+    <p class="brand">STORYHOUSE</p>
+    <h1>Film ansehen</h1>
+    <p class="lead">Entschlüsselt ein StoryHouse-Render-Ergebnis (<code>.mp4.enc</code>) <strong>nur auf diesem Gerät</strong>. Diese Seite sendet nichts ins Internet – weder Passphrase noch Film.</p>
+  </header>
+
+  <form id="form" autocomplete="on">
+    <label for="file">1 · Verschlüsselte Datei</label>
+    <input id="file" type="file" accept=".enc,application/octet-stream" required>
+    <p class="hint">Aus dem entpackten Artefakt <code>render-…-encrypted</code>, z. B. <code>…_test_PRIVAT.mp4.enc</code>.</p>
+
+    <label for="pass">2 · ARTIFACT_PASSPHRASE</label>
+    <input id="pass" type="password" autocomplete="current-password" required minlength="16" spellcheck="false" autocapitalize="off">
+
+    <button id="go" type="submit">3 · Entschlüsseln &amp; abspielen</button>
+  </form>
+
+  <p id="status" role="status" aria-live="polite"></p>
+
+  <section id="result" hidden>
+    <video id="video" controls playsinline preload="metadata"></video>
+    <div class="actions">
+      <button id="share" type="button">In Fotos / Dateien sichern</button>
+      <a id="download" class="button secondary" download>Herunterladen</a>
+    </div>
+    <p class="notice">Privater Test – nicht kommerziell, nicht veröffentlichen, nicht weitergeben.</p>
+  </section>
+</main>
+<script src="player.js"></script>
+</body>
+</html>
