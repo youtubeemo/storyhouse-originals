@@ -43,6 +43,10 @@ class ElevenLabsError(RuntimeError):
     pass
 
 
+class ElevenLabsPermissionError(ElevenLabsError):
+    """Schlüssel ungültig oder ohne nötige Berechtigung – der ganze Lauf stoppt."""
+
+
 class UncertainGenerationError(ElevenLabsError):
     """Unklar, ob ElevenLabs die (kostenpflichtige) Generierung ausgeführt hat."""
 
@@ -91,6 +95,7 @@ class ElevenLabsClient:
         self.transport = transport
         self.base_url = base_url.rstrip("/")
         self.sleep = sleep
+        self.last_status: int | None = None   # HTTP-Status der letzten kostenlosen Abfrage
 
     def __repr__(self) -> str:  # niemals den Schlüssel zeigen
         return f"ElevenLabsClient(base_url={self.base_url!r}, key=***)"
@@ -103,7 +108,9 @@ class ElevenLabsClient:
         try:
             status, raw, _ = self.transport("GET", f"{self.base_url}{path}", self._headers("application/json"), None)
         except NETWORK_ERRORS:
+            self.last_status = 0
             return 0, None
+        self.last_status = status
         try:
             return status, json.loads(raw.decode("utf-8")) if raw else None
         except (ValueError, UnicodeDecodeError):
@@ -180,9 +187,20 @@ class ElevenLabsClient:
             if status >= 500 or status == 429:
                 self.guard.mark_uncertain(job.id, f"HTTP {status}")
                 raise UncertainGenerationError(f"{job.id}: HTTP {status} von ElevenLabs – Ergebnis unklar, Stopp")
-            # 4xx: abgelehnt (Validierung, Kontingent, Tarif, Stimme) -> nichts generiert, keine Kosten
+            # 4xx: abgelehnt (Berechtigung, Validierung, Kontingent, Tarif, Stimme) -> nichts generiert,
+            # keine Kosten. Der Lauf stoppt für ALLE Anbieter (verbundene Wächter).
             self.guard.settle(job.id, 0.0)
-            raise ElevenLabsError(f"{job.id}: Anfrage abgelehnt (HTTP {status}): {_detail(raw)}")
+            if status in (401, 403):
+                self.guard.stopped = "permission"
+                self.guard._flush()
+                raise ElevenLabsPermissionError(
+                    f"{job.id}: ElevenLabs verweigert den Zugriff (HTTP {status}): {_detail(raw)}. "
+                    "Schlüssel bzw. Berechtigungen (Text to Speech, Sound Effects, Music) prüfen. "
+                    "Lauf gestoppt – keine weiteren kostenpflichtigen Schritte."
+                )
+            self.guard.stopped = "rejected"
+            self.guard._flush()
+            raise ElevenLabsError(f"{job.id}: Anfrage abgelehnt (HTTP {status}): {_detail(raw)} – Lauf gestoppt")
         raise ElevenLabsError(f"{job.id}: Rate-Limit dauerhaft überschritten")
 
 

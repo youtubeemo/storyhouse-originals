@@ -5,8 +5,17 @@
 
 # Hauptschalter. Solange false, verweigert die Pipeline JEDEN
 # kostenpflichtigen API-Aufruf – unabhängig von Workflow-Eingaben.
-# Erst nach ausdrücklicher Freigabe durch die Produktion per PR auf true setzen.
-paid_rendering_enabled: false
+# Freigegeben per PR durch die Produktion (14.11.2026) – NUR im Rahmen von paid_scope.
+paid_rendering_enabled: true
+
+# Freigabeumfang: Nur diese Profile/Szenen/Tonquellen dürfen bezahlt gerendert
+# werden. Alles andere bricht im Preflight ab, BEVOR Geld fließt – egal was im
+# Workflow eingegeben wird. Erweitern (z. B. scenes: all, profiles: [test, final])
+# nur per eigenem PR nach Abnahme des vorherigen Renders.
+paid_scope:
+  profiles: [test]
+  scenes: [S01]
+  audio_providers: [elevenlabs]
 
 currency: EUR
 

@@ -5,6 +5,7 @@ Es geht keine einzige echte Anfrage raus, es entstehen keine Kosten.
 """
 import io
 import json
+import urllib.error
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -106,9 +107,9 @@ def test_full_paid_flow_via_cli_with_both_providers(assets, tmp_path, monkeypatc
     monkeypatch.setenv("STORYHOUSE_APPROVAL", "ICH GEBE DIESEN RENDER FREI")
     monkeypatch.delenv("GITHUB_STEP_SUMMARY", raising=False)
 
-    # Freigabe + Musiklizenz nur in einer Testkopie der Konfiguration – das Repo bleibt gesperrt.
+    # Musiklizenz nur in einer Testkopie bestätigen – im Repo bleibt Musik gesperrt.
     raw = yaml.safe_load((ROOT / "config" / "budget.yaml").read_text())
-    assert raw["paid_rendering_enabled"] is False
+    assert raw["elevenlabs"]["music_license_confirmed"] is False
     raw["paid_rendering_enabled"] = True
     raw["elevenlabs"]["music_license_confirmed"] = True
     budget = tmp_path / "budget.yaml"
@@ -184,3 +185,68 @@ def test_cli_refuses_when_account_has_overage_enabled(assets, tmp_path, monkeypa
     rc = main(["preflight", "--budget-config", str(budget), "--scenes", "S01", "--ledger", str(tmp_path / "l.json")])
     assert rc == 2
     assert not net.el_posts and not net.tasks
+
+
+def _paid_env(monkeypatch):
+    monkeypatch.setattr("time.sleep", lambda s: None)
+    monkeypatch.setenv("RUNWAYML_API_SECRET", RUNWAY_KEY)
+    monkeypatch.setenv("ELEVENLABS_API_KEY", EL_KEY)
+    monkeypatch.setenv("ARTIFACT_PASSPHRASE", PASSPHRASE)
+    monkeypatch.setenv("STORYHOUSE_APPROVAL", "ICH GEBE DIESEN RENDER FREI")
+    monkeypatch.delenv("GITHUB_STEP_SUMMARY", raising=False)
+
+
+@requires_ffmpeg
+def test_first_render_with_repo_config_test_s01(assets, tmp_path, monkeypatch):
+    """Exakt der freigegebene erste Lauf – mit der echten config/budget.yaml des Repos."""
+    net = FakeInternet(assets)
+    monkeypatch.setattr("urllib.request.urlopen", net)
+    _paid_env(monkeypatch)
+    ledger, out = tmp_path / "ledger.json", tmp_path / "render"
+    common = ["--profile", "test", "--scenes", "S01", "--ledger", str(ledger), "--run-id", "first", "--out", str(out)]
+    for cmd in ("preflight", "reserve", "render", "finalize"):
+        assert main([cmd, *common]) == 0, cmd
+    assert not any(p["path"] == "/v1/music" for p in net.el_posts), "Musik bleibt gesperrt"
+    # ElevenLabs läuft vor Runway
+    posts = [(h, p) for m, h, p in net.log if m == "POST"]
+    first_runway = next(i for i, (h, _) in enumerate(posts) if h == "api.dev.runwayml.com")
+    assert all(h == "api.elevenlabs.io" for h, _ in posts[:first_runway]) and first_runway == 6
+    entry = Ledger.load(ledger).entry("first")
+    assert entry["reserved_eur"] <= 1.10 and entry["spent_eur"] <= entry["reserved_eur"]
+    probe = ff.probe(Path(json.loads((out / "manifest.json").read_text())["video"]))
+    assert probe["duration"] == pytest.approx(5.5, abs=0.1)
+
+
+@pytest.mark.parametrize("where", ["generate", "subscription"])
+def test_missing_elevenlabs_permission_stops_before_runway_spends(assets, tmp_path, monkeypatch, where):
+    """Fehlende ElevenLabs-Berechtigung: kein einziger Runway-Task, Ledger korrekt abgeschlossen."""
+    net = FakeInternet(assets)
+    real = net.__call__
+
+    def deny(req, timeout=None):
+        if not isinstance(req, str) and "api.elevenlabs.io" in req.full_url:
+            is_sub = req.full_url.endswith("/v1/user/subscription")
+            if (where == "subscription" and is_sub) or (where == "generate" and req.get_method() == "POST"):
+                net.log.append((req.get_method(), "api.elevenlabs.io", "DENIED"))
+                body = json.dumps({"detail": {"status": "missing_permissions",
+                                              "message": "The API key is missing the permission"}}).encode()
+                raise urllib.error.HTTPError(req.full_url, 401, "Unauthorized", {}, io.BytesIO(body))
+        return real(req, timeout)
+
+    monkeypatch.setattr("urllib.request.urlopen", deny)
+    _paid_env(monkeypatch)
+    ledger, out = tmp_path / "ledger.json", tmp_path / "render"
+    common = ["--profile", "test", "--scenes", "S01", "--ledger", str(ledger), "--run-id", "deny", "--out", str(out)]
+    if where == "subscription":
+        assert main(["preflight", *common]) == 2
+        assert not net.tasks and not net.el_posts
+        return
+    assert main(["preflight", *common]) == 0
+    assert main(["reserve", *common]) == 0
+    assert main(["render", *common]) == 2
+    assert not net.tasks, "Runway darf nach fehlender ElevenLabs-Berechtigung nichts generieren"
+    assert sum(1 for _, _, p in net.log if p == "DENIED") == 1, "genau ein abgelehnter Versuch, keine Wiederholung"
+    assert main(["finalize", *common]) == 0
+    entry = Ledger.load(ledger).entry("deny")
+    assert entry["status"] == "finalized" and entry["spent_eur"] == 0
+    assert "permission" in entry.get("note", "")

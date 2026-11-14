@@ -14,7 +14,13 @@ ENV_OK = {"RUNWAYML_API_SECRET": "x", "ARTIFACT_PASSPHRASE": "a-very-long-passph
 
 # ---------------------------------------------------------------- Konfiguration
 def test_repository_config_is_safe_by_default(cfg):
-    assert cfg.paid_rendering_enabled is False, "Bezahltes Rendern darf im Repo nicht freigeschaltet sein"
+    # Freigeschaltet seit dem Freigabe-PR – aber NUR für den ersten Testrender von S01.
+    if cfg.paid_rendering_enabled:
+        assert cfg.scope_profiles == ("test",), "Freigabe nur für das Testprofil"
+        assert cfg.scope_scenes == ("S01",), "Freigabe nur für Szene S01"
+        assert cfg.scope_audio_providers == ("elevenlabs",)
+        assert cfg.el_music_license_confirmed is False, "Musik bleibt gesperrt"
+    assert cfg.max_per_run_eur == 25.0
     assert cfg.total_budget_eur == 200.0 <= HARD_CEILING_EUR
     assert cfg.max_per_run_eur <= cfg.total_budget_eur
     assert cfg.vat_rate >= 0.19
@@ -158,9 +164,9 @@ def test_spend_guard_rejects_zero_cost(pricing, cfg):
 
 
 # ---------------------------------------------------------------- Freigabe
-def test_paid_approval_blocked_by_default(cfg):
+def test_paid_approval_blocked_by_main_switch(locked_cfg):
     with pytest.raises(ApprovalError, match="gesperrt"):
-        require_paid_approval(cfg, cfg.approval_phrase, env=ENV_OK)
+        require_paid_approval(locked_cfg, locked_cfg.approval_phrase, env=ENV_OK)
 
 
 def test_paid_approval_needs_phrase_secret_and_passphrase(enabled_cfg):

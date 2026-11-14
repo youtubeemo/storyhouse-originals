@@ -116,6 +116,22 @@ Eleven Music ist laut ElevenLabs in bezahlten Tarifen für „broad commercial u
 
 Ohne Freigabe entsteht trotzdem ein vollständiger Film – mit Drone als Musikbett. Rechtssichere Alternative: lizenzierte Datei als `assets/music/ep01_score.wav`.
 
+### 5.2 Freigabeumfang (`paid_scope`)
+
+`config/budget.yaml` legt fest, **was** bezahlt gerendert werden darf. Aktuell (Freigabe-PR vom 14.11.2026):
+
+```yaml
+paid_rendering_enabled: true
+paid_scope:
+  profiles: [test]
+  scenes: [S01]
+  audio_providers: [elevenlabs]
+```
+
+Jede andere Eingabe im Workflow (z. B. `scenes = all` oder `profile = final`) bricht im Preflight ab, bevor Geld fließt. Nach Abnahme von S01 wird der Umfang per eigenem PR erweitert (z. B. `scenes: [all]`, später `profiles: [test, final]`).
+
+**Reihenfolge im Render:** Erst alle ElevenLabs-Aufrufe (Ton, ca. 0,38 €), dann Runway (Bild/Video). Lehnt ElevenLabs ab – fehlende Berechtigung (HTTP 401/403), Kontingent, Tarif –, stoppt der ganze Lauf ohne einen einzigen Runway-Auftrag. Fehlende Leseberechtigungen (`User`, `Voices`) fallen schon im kostenlosen Preflight auf.
+
 ## 6. Bezahlten Lauf starten
 
 **Actions → Film produzieren → Run workflow** auf Branch `main`, `mode = paid-render`, `approval = ICH GEBE DIESEN RENDER FREI`, dann im Lauf **Review deployments → Approve**.

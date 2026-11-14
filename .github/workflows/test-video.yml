@@ -38,9 +38,9 @@ on:
         options: [test, final]
         default: test
       scenes:
-        description: "all (ganzer Film) | S01,S03 | S02-S04"
+        description: "S01 | all (ganzer Film) | S01,S03 | S02-S04 – bezahlt nur im Umfang von paid_scope"
         type: string
-        default: all
+        default: S01
       preview:
         description: "Dry-Run in kleiner Auflösung (schneller)"
         type: boolean

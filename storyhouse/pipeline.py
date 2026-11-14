@@ -181,7 +181,11 @@ def paid_render(ep_full: Episode, plan: Plan, client, out_dir: Path, scenes: str
     files: dict[str, Path] = {}
     started = time.time()
     try:
-        for job in plan.jobs:
+        # ElevenLabs zuerst: Ton ist billig und hängt von nichts ab. Fehlt eine Berechtigung
+        # oder lehnt ElevenLabs ab, stoppt der Lauf, BEVOR für Bild/Video Geld ausgegeben wird.
+        ordered = ([j for j in plan.jobs if j.provider == "elevenlabs"]
+                   + [j for j in plan.jobs if j.provider != "elevenlabs"])
+        for job in ordered:
             log(f"→ {job.id} ({job.provider}/{job.model}, ~{job.credits:.0f} Credits)")
             if job.provider == "elevenlabs":
                 # synchron: Audiodaten kommen direkt zurück, keine URL
