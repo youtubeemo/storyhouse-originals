@@ -62,12 +62,29 @@ class BudgetConfig:
     ledger_file: str = "ledger.json"
     el_require_commercial_license: bool = True
     el_music_license_confirmed: bool = False
+    # Freigabeumfang für bezahlte Läufe (None = keine Einschränkung, "all" = alle Szenen)
+    scope_profiles: tuple[str, ...] | None = None
+    scope_scenes: tuple[str, ...] | None = None
+    scope_audio_providers: tuple[str, ...] | None = None
 
     @classmethod
     def load(cls, path: str | Path = DEFAULT_BUDGET) -> "BudgetConfig":
         with Path(path).open(encoding="utf-8") as fh:
             raw = yaml.safe_load(fh)
         el = raw.get("elevenlabs") or {}
+        scope = raw.get("paid_scope")
+
+        def _scope(key: str) -> tuple[str, ...] | None:
+            if scope is None:
+                return None
+            val = scope.get(key)
+            if val is None:
+                return None
+            vals = tuple(str(v).strip() for v in (val if isinstance(val, list) else [val]) if str(v).strip())
+            if not vals:
+                raise BudgetError(f"paid_scope.{key} ist leer")
+            return vals
+
         cfg = cls(
             paid_rendering_enabled=bool(raw.get("paid_rendering_enabled", False)),
             total_budget_eur=float(raw["total_budget_eur"]),
@@ -81,6 +98,9 @@ class BudgetConfig:
             ledger_file=str(raw.get("ledger_file", "ledger.json")),
             el_require_commercial_license=bool(el.get("require_commercial_license", True)),
             el_music_license_confirmed=bool(el.get("music_license_confirmed", False)),
+            scope_profiles=_scope("profiles"),
+            scope_scenes=_scope("scenes"),
+            scope_audio_providers=_scope("audio_providers"),
         )
         cfg.validate()
         return cfg
@@ -457,6 +477,25 @@ class SpendGuard:
 # ---------------------------------------------------------------------
 # Freigabe für bezahlte Läufe
 # ---------------------------------------------------------------------
+def require_paid_scope(cfg: BudgetConfig, plan) -> None:
+    """Bezahlte Läufe nur im freigegebenen Umfang (config/budget.yaml: paid_scope)."""
+    problems: list[str] = []
+    if cfg.scope_profiles is not None and plan.profile not in cfg.scope_profiles:
+        problems.append(f"Profil '{plan.profile}' (freigegeben: {', '.join(cfg.scope_profiles)})")
+    if cfg.scope_scenes is not None and "all" not in cfg.scope_scenes:
+        extra = [s for s in plan.scenes if s not in cfg.scope_scenes]
+        if extra:
+            problems.append(f"Szenen {', '.join(extra)} (freigegeben: {', '.join(cfg.scope_scenes)})")
+    if (cfg.scope_audio_providers is not None and plan.audio_provider is not None
+            and plan.audio_provider not in cfg.scope_audio_providers):
+        problems.append(f"Tonquelle '{plan.audio_provider}' (freigegeben: {', '.join(cfg.scope_audio_providers)})")
+    if problems:
+        raise ApprovalError(
+            "Außerhalb des freigegebenen Umfangs (config/budget.yaml: paid_scope): " + "; ".join(problems)
+            + ". Kein bezahlter Lauf. Erweiterung nur per PR."
+        )
+
+
 def require_paid_approval(cfg: BudgetConfig, approval_text: str | None, env: dict | None = None,
                           require_passphrase: bool = True,
                           secrets: tuple[str, ...] = ("RUNWAYML_API_SECRET",)) -> None:

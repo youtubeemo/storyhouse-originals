@@ -26,6 +26,26 @@ def cfg():
 
 
 @pytest.fixture
+def locked_cfg(cfg):
+    """Konfiguration mit gesperrtem Rendern (Hauptschalter aus)."""
+    from dataclasses import replace
+
+    return replace(cfg, paid_rendering_enabled=False)
+
+
+@pytest.fixture
+def locked_budget_file(tmp_path):
+    """Kopie von config/budget.yaml mit paid_rendering_enabled: false."""
+    import yaml
+
+    raw = yaml.safe_load((ROOT / "config" / "budget.yaml").read_text())
+    raw["paid_rendering_enabled"] = False
+    path = tmp_path / "budget_locked.yaml"
+    path.write_text(yaml.safe_dump(raw, allow_unicode=True))
+    return path
+
+
+@pytest.fixture
 def enabled_cfg(cfg):
     """Konfiguration mit freigeschaltetem Rendern – nur für Tests."""
     from dataclasses import replace

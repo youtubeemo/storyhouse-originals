@@ -117,11 +117,12 @@ def test_nothing_publishes_videos():
         assert not forbidden.search(f.read_text()), f
 
 
-def test_cli_preflight_refuses_by_default(tmp_path, monkeypatch):
+def test_cli_preflight_refuses_when_switch_off(tmp_path, monkeypatch, locked_budget_file):
     monkeypatch.setenv("STORYHOUSE_APPROVAL", "ICH GEBE DIESEN RENDER FREI")
     monkeypatch.setenv("RUNWAYML_API_SECRET", "dummy")
     monkeypatch.setenv("ARTIFACT_PASSPHRASE", "x" * 20)
-    rc = main(["preflight", "--ledger", str(tmp_path / "l.json")])
+    rc = main(["preflight", "--budget-config", str(locked_budget_file), "--scenes", "S01",
+               "--ledger", str(tmp_path / "l.json")])
     assert rc == 2
 
 

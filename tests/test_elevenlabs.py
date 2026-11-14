@@ -370,8 +370,9 @@ def test_paid_approval_needs_elevenlabs_key(enabled_cfg):
 
 
 @pytest.mark.parametrize("cmd", ["preflight", "reserve", "render"])
-def test_cli_paid_commands_refuse_by_default(cmd, tmp_path, monkeypatch):
-    """Auch mit Schlüssel und Phrase: solange paid_rendering_enabled false ist, passiert nichts."""
+@pytest.mark.parametrize("variant", ["switch_off", "out_of_scope_all", "out_of_scope_final", "no_phrase"])
+def test_cli_paid_commands_refuse_without_network(cmd, variant, tmp_path, monkeypatch, locked_budget_file):
+    """Hauptschalter aus, Umfang überschritten oder Phrase fehlt: Abbruch ohne eine einzige Verbindung."""
     def no_network(*a, **k):
         raise AssertionError("Gesperrter Lauf darf keine Netzwerkverbindung öffnen")
 
@@ -380,7 +381,50 @@ def test_cli_paid_commands_refuse_by_default(cmd, tmp_path, monkeypatch):
     monkeypatch.setenv("RUNWAYML_API_SECRET", "dummy")
     monkeypatch.setenv("ELEVENLABS_API_KEY", KEY)
     monkeypatch.setenv("ARTIFACT_PASSPHRASE", "x" * 20)
-    assert main([cmd, "--ledger", str(tmp_path / "l.json"), "--out", str(tmp_path / "o")]) == 2
+    args = {"switch_off": ["--budget-config", str(locked_budget_file), "--scenes", "S01"],
+            "out_of_scope_all": ["--scenes", "all"],
+            "out_of_scope_final": ["--profile", "final", "--scenes", "S01"],
+            "no_phrase": ["--scenes", "S01"]}[variant]
+    if variant == "no_phrase":
+        monkeypatch.setenv("STORYHOUSE_APPROVAL", "")
+    assert main([cmd, *args, "--ledger", str(tmp_path / "l.json"), "--out", str(tmp_path / "o")]) == 2
+
+
+def test_paid_scope_only_allows_test_s01(cfg, episode, pricing):
+    from storyhouse.budget import require_paid_scope
+
+    require_paid_scope(cfg, build_plan(episode, pricing, profile="test", scenes="S01"))
+    for profile, scenes, match in (("test", "all", "Szenen S02"), ("final", "S01", "Profil 'final'"),
+                                   ("test", "S01,S02", "Szenen S02")):
+        with pytest.raises(ApprovalError, match=match):
+            require_paid_scope(cfg, build_plan(episode, pricing, profile=profile, scenes=scenes))
+    with pytest.raises(ApprovalError, match="Tonquelle 'runway'"):
+        require_paid_scope(cfg, build_plan(episode, pricing, scenes="S01", audio_provider="runway"))
+
+
+def test_first_render_fits_budget(cfg, episode, pricing):
+    plan = build_plan(episode, pricing, profile="test", scenes="S01",
+                      include_music=cfg.el_music_license_confirmed)
+    assert not [j for j in plan.jobs if j.kind == "music"]
+    eur = plan.total_eur(pricing, cfg)
+    assert eur * (1 + cfg.safety_margin) <= 1.10 <= cfg.max_per_run_eur
+
+
+@pytest.mark.parametrize("status", [401, 403])
+def test_permission_error_stops_whole_run(episode, pricing, cfg, tmp_path, status):
+    """Fehlende ElevenLabs-Berechtigung: Lauf stoppt auch für Runway (verbundene Wächter)."""
+    from storyhouse.elevenlabs import ElevenLabsPermissionError
+
+    rw = SpendGuard(limit_eur=5, pricing=pricing, cfg=cfg)
+    client, el = _client(pricing, cfg, FakeTransport(status=status))
+    rw.link(el)
+    with pytest.raises(ElevenLabsPermissionError, match="keine weiteren"):
+        client.run_job(_tts_job(episode, pricing), tmp_path / "a.mp3")
+    assert el.stopped == "permission" and el.spent_credits == 0
+    with pytest.raises(BudgetError, match="gestoppt"):
+        rw.authorize("VID_S01", 25)
+    with pytest.raises(BudgetError, match="gestoppt"):
+        el.authorize("SFX_x", 40)
 
 
 # ---------------------------------------------------------------- Workflow & Code-Leitplanken

@@ -15,7 +15,7 @@ from pathlib import Path
 
 from storyhouse.budget import (
     ApprovalError, BudgetConfig, BudgetError, Ledger, Pricing, SpendGuard, check_affordable,
-    finalize, remaining_eur, require_paid_approval, reserve,
+    finalize, remaining_eur, require_paid_approval, require_paid_scope, reserve,
 )
 from storyhouse.episode import EpisodeError, load_episode
 from storyhouse.plan import build_plan, format_estimate
@@ -63,11 +63,20 @@ def _elevenlabs_check(plan, pricing, cfg, ep) -> dict:
 
     guard = SpendGuard(limit_eur=0.0, pricing=pricing, cfg=cfg, provider="elevenlabs")
     client = ElevenLabsClient(os.environ["ELEVENLABS_API_KEY"], guard)
-    info = check_subscription(client.subscription(), plan.credits("elevenlabs"), cfg,
+    sub = client.subscription()
+    if sub is None and client.last_status in (401, 403):
+        raise ApprovalError(
+            f"ElevenLabs verweigert die Kontoabfrage (HTTP {client.last_status}): Schlüssel ungültig oder ohne "
+            "Berechtigung 'User: Read'. Kein bezahlter Lauf – nichts wurde generiert."
+        )
+    info = check_subscription(sub, plan.credits("elevenlabs"), cfg,
                               needs_music=any(j.kind == "music" for j in plan.jobs))
     voices = sorted({j.path.rsplit("/", 1)[-1] for j in plan.jobs if j.provider == "elevenlabs" and j.kind == "tts"})
     for voice_id in voices:
         ok = client.voice_available(voice_id)
+        if ok is None and client.last_status in (401, 403):
+            raise ApprovalError(f"ElevenLabs verweigert die Stimmenabfrage (HTTP {client.last_status}): "
+                                "Berechtigung 'Voices: Read' fehlt. Kein bezahlter Lauf.")
         if ok is None:
             raise BudgetError(f"ElevenLabs-Stimme {voice_id} nicht prüfbar (Netz/Berechtigung 'voices_read') – Abbruch")
         if not ok:
@@ -146,6 +155,8 @@ def _dispatch(args: argparse.Namespace) -> int:
             f"verbraucht/reserviert: {ledger.committed_eur():.2f} € · **verbleibend: {rem:.2f} €** · "
             f"Läufe: {len(ledger.entries)} · bezahltes Rendern: "
             f"{'FREIGESCHALTET' if cfg.paid_rendering_enabled else 'GESPERRT'}"
+            + (f" (Umfang: Profile {', '.join(cfg.scope_profiles or ['alle'])}, "
+               f"Szenen {', '.join(cfg.scope_scenes or ['alle'])})" if cfg.paid_rendering_enabled else "")
         )
         if ledger.committed_eur() >= cfg.total_budget_eur * cfg.warn_at_fraction:
             _summary(f"⚠️ Warnschwelle {cfg.warn_at_fraction:.0%} des Budgets erreicht.")
@@ -185,6 +196,9 @@ def _dispatch(args: argparse.Namespace) -> int:
 
     ledger = Ledger.load(args.ledger)
     approval = os.environ.get("STORYHOUSE_APPROVAL", "")
+
+    if args.cmd in ("preflight", "reserve", "render"):
+        require_paid_scope(cfg, plan)
 
     if args.cmd == "preflight":
         require_paid_approval(cfg, approval, secrets=plan.required_secrets())
