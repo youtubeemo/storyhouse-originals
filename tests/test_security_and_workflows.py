@@ -71,10 +71,21 @@ def test_paid_job_is_gated():
     assert finalize["if"] == "${{ always() }}"
 
 
-def test_paid_results_only_uploaded_encrypted():
+def test_paid_results_uploaded_encrypted_and_plain_only_if_private():
     paid = _wf("test-video.yml")["jobs"]["paid-render"]
-    uploads = [s for s in paid["steps"] if str(s.get("uses", "")).startswith("actions/upload-artifact")]
-    assert uploads and all(u["with"]["path"].strip() == "output/encrypted/" for u in uploads)
+    steps = paid["steps"]
+    uploads = [s for s in steps if str(s.get("uses", "")).startswith("actions/upload-artifact")]
+    encrypted = [u for u in uploads if u["with"]["path"].strip() == "output/encrypted/"]
+    plain = [u for u in uploads if u not in encrypted]
+    assert len(encrypted) == 1 and encrypted[0]["if"] == "${{ always() }}", "Verschlüsselt immer"
+    assert len(plain) == 1, "genau ein unverschlüsselter Upload"
+    assert plain[0]["if"] == "${{ always() && steps.visibility.outputs.private == 'true' }}"
+    paths = [l.strip() for l in plain[0]["with"]["path"].splitlines() if l.strip()]
+    assert paths == ["output/render/*.mp4", "output/render/*.srt", "output/render/LIZENZ_*.txt"], \
+        "keine Rohdateien, Protokolle oder URLs unverschlüsselt"
+    vis = next(i for i, s in enumerate(steps) if s.get("id") == "visibility")
+    assert "github_guard visibility" in steps[vis]["run"]
+    assert steps.index(encrypted[0]) < vis == steps.index(plain[0]) - 1, "Prüfung direkt vor dem Upload"
 
 
 @pytest.mark.skipif(not shutil.which("openssl"), reason="openssl fehlt")
