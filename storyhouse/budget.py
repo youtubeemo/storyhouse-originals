@@ -60,11 +60,14 @@ class BudgetConfig:
     approval_phrase: str
     ledger_branch: str = "budget-ledger"
     ledger_file: str = "ledger.json"
+    el_require_commercial_license: bool = True
+    el_music_license_confirmed: bool = False
 
     @classmethod
     def load(cls, path: str | Path = DEFAULT_BUDGET) -> "BudgetConfig":
         with Path(path).open(encoding="utf-8") as fh:
             raw = yaml.safe_load(fh)
+        el = raw.get("elevenlabs") or {}
         cfg = cls(
             paid_rendering_enabled=bool(raw.get("paid_rendering_enabled", False)),
             total_budget_eur=float(raw["total_budget_eur"]),
@@ -76,6 +79,8 @@ class BudgetConfig:
             approval_phrase=str(raw["approval_phrase"]),
             ledger_branch=str(raw.get("ledger_branch", "budget-ledger")),
             ledger_file=str(raw.get("ledger_file", "ledger.json")),
+            el_require_commercial_license=bool(el.get("require_commercial_license", True)),
+            el_music_license_confirmed=bool(el.get("music_license_confirmed", False)),
         )
         cfg.validate()
         return cfg
@@ -110,6 +115,24 @@ class Pricing:
     def usd_per_credit(self) -> float:
         return float(self.raw["usd_per_credit"])
 
+    def usd_per_credit_of(self, provider: str = "runway") -> float:
+        """USD-Wert eines Credits je Anbieter (Runway- und ElevenLabs-Credits sind verschiedene Einheiten)."""
+        if provider == "runway":
+            return self.usd_per_credit
+        try:
+            value = float(self.raw[provider]["usd_per_credit"])
+        except (KeyError, TypeError) as exc:
+            raise BudgetError(f"Kein Credit-Preis für Anbieter {provider} hinterlegt") from exc
+        if value <= 0:
+            raise BudgetError(f"Credit-Preis für {provider} muss > 0 sein")
+        return value
+
+    def elevenlabs_model(self, kind: str) -> str:
+        try:
+            return str(self.raw["elevenlabs"]["models"][kind])
+        except (KeyError, TypeError) as exc:
+            raise BudgetError(f"Kein ElevenLabs-Modell für {kind} hinterlegt") from exc
+
     def profile(self, name: str) -> dict[str, str]:
         try:
             return dict(self.raw["profiles"][name])
@@ -117,11 +140,12 @@ class Pricing:
             raise BudgetError(f"Unbekanntes Profil: {name}") from exc
 
     # Credits je Jobart -------------------------------------------------
-    def _entry(self, section: str, model: str) -> dict[str, Any]:
+    def _entry(self, section: str, model: str, provider: str = "runway") -> dict[str, Any]:
+        root = self.raw if provider == "runway" else self.raw.get(provider) or {}
         try:
-            return dict(self.raw[section][model])
+            return dict(root[section][model])
         except (KeyError, TypeError) as exc:
-            raise BudgetError(f"Kein Preis für {section}/{model} hinterlegt") from exc
+            raise BudgetError(f"Kein Preis für {provider}/{section}/{model} hinterlegt") from exc
 
     def video_credits(self, model: str, seconds: int) -> float:
         return float(self._entry("video", model)["credits_per_second"]) * int(seconds)
@@ -137,10 +161,23 @@ class Pricing:
         e = self._entry("sound_effect", model)
         return float(math.ceil(float(duration) * float(e["credits_per_second"])))
 
-    SECTION_BY_KIND = {"video": "video", "image": "image", "tts": "tts", "sfx": "sound_effect"}
+    # ElevenLabs direkt (Credits = Zeichen-Kontingent des Kontos) -------
+    def el_tts_credits(self, model: str, text: str) -> float:
+        e = self._entry("tts", model, "elevenlabs")
+        return float(max(1, math.ceil(len(text) * float(e["credits_per_char"]))))
 
-    def is_verified(self, kind: str, model: str) -> bool:
-        return bool(self._entry(self.SECTION_BY_KIND[kind], model).get("verified", False))
+    def el_sfx_credits(self, model: str, duration: float) -> float:
+        e = self._entry("sound_effect", model, "elevenlabs")
+        return float(math.ceil(float(duration) * float(e["credits_per_second"])))
+
+    def el_music_credits(self, model: str, seconds: float) -> float:
+        e = self._entry("music", model, "elevenlabs")
+        return float(math.ceil(float(seconds) * float(e["credits_per_second"])))
+
+    SECTION_BY_KIND = {"video": "video", "image": "image", "tts": "tts", "sfx": "sound_effect", "music": "music"}
+
+    def is_verified(self, kind: str, model: str, provider: str = "runway") -> bool:
+        return bool(self._entry(self.SECTION_BY_KIND[kind], model, provider).get("verified", False))
 
     def verified_on(self) -> dt.date:
         return dt.date.fromisoformat(str(self.raw["verified_on"]))
@@ -152,17 +189,19 @@ class Pricing:
         if age > int(self.raw.get("max_age_days", 45)):
             raise BudgetError(
                 f"Preistabelle ist {age} Tage alt (Prüfung vom {self.verified_on()}). "
-                "Preise mit docs.dev.runwayml.com abgleichen und verified_on per PR aktualisieren."
+                "Preise mit docs.dev.runwayml.com und elevenlabs.io/pricing/api abgleichen und "
+                "verified_on per PR aktualisieren."
             )
-        bad = sorted({f"{j.kind}/{j.model}" for j in jobs if not self.is_verified(j.kind, j.model)})
+        bad = sorted({f"{getattr(j, 'provider', 'runway')}/{j.kind}/{j.model}" for j in jobs
+                      if not self.is_verified(j.kind, j.model, getattr(j, "provider", "runway"))})
         if bad:
             raise BudgetError(f"Ungeprüfte Preise für: {', '.join(bad)} – bezahlter Lauf verweigert")
 
-    def credits_to_eur(self, credits: float, cfg: BudgetConfig) -> float:
-        return round(credits * self.usd_per_credit * cfg.eur_per_usd * (1.0 + cfg.vat_rate), 4)
+    def credits_to_eur(self, credits: float, cfg: BudgetConfig, provider: str = "runway") -> float:
+        return round(credits * self.usd_per_credit_of(provider) * cfg.eur_per_usd * (1.0 + cfg.vat_rate), 4)
 
-    def eur_to_credits(self, eur: float, cfg: BudgetConfig) -> float:
-        return eur / (self.usd_per_credit * cfg.eur_per_usd * (1.0 + cfg.vat_rate))
+    def eur_to_credits(self, eur: float, cfg: BudgetConfig, provider: str = "runway") -> float:
+        return eur / (self.usd_per_credit_of(provider) * cfg.eur_per_usd * (1.0 + cfg.vat_rate))
 
 
 # ---------------------------------------------------------------------
@@ -276,7 +315,9 @@ def reserve(run_id: str, estimate_eur: float, cfg: BudgetConfig, ledger: Ledger,
 
 
 def finalize(run_id: str, spent_credits: float, pricing: Pricing, cfg: BudgetConfig, ledger: Ledger,
-             note: str = "", balance_delta_credits: float | None = None) -> dict:
+             note: str = "", balance_delta_credits: float | None = None,
+             elevenlabs_credits: float = 0.0) -> dict:
+    """spent_credits/balance_delta_credits = Runway-Credits; elevenlabs_credits separat (andere Einheit)."""
     entry = ledger.entry(run_id)
     if not entry:
         raise BudgetError(f"Keine Reservierung für {run_id}")
@@ -285,6 +326,10 @@ def finalize(run_id: str, spent_credits: float, pricing: Pricing, cfg: BudgetCon
     credits = max(float(spent_credits), float(balance_delta_credits or 0.0))
     entry["spent_credits"] = credits
     entry["spent_eur"] = pricing.credits_to_eur(credits, cfg)
+    if elevenlabs_credits:
+        entry["elevenlabs_credits"] = float(elevenlabs_credits)
+        entry["elevenlabs_eur"] = pricing.credits_to_eur(float(elevenlabs_credits), cfg, "elevenlabs")
+        entry["spent_eur"] = round(entry["spent_eur"] + entry["elevenlabs_eur"], 4)
     entry["status"] = "finalized"
     entry["finalized_utc"] = _now()
     if balance_delta_credits is not None:
@@ -303,7 +348,12 @@ def finalize(run_id: str, spent_credits: float, pricing: Pricing, cfg: BudgetCon
 # ---------------------------------------------------------------------
 @dataclass
 class SpendGuard:
-    """Wird vom Runway-Client vor und nach JEDEM kostenpflichtigen Aufruf gefragt."""
+    """Wird von den API-Clients vor und nach JEDEM kostenpflichtigen Aufruf gefragt.
+
+    Pro Anbieter gibt es einen Wächter (Credits sind verschiedene Einheiten). Über
+    ``link`` teilen sich mehrere Wächter EIN Euro-Limit (die Reservierung des Laufs);
+    stoppt einer, stoppen alle.
+    """
 
     limit_eur: float
     pricing: Pricing
@@ -312,6 +362,8 @@ class SpendGuard:
     charges: dict[str, float] = field(default_factory=dict)
     calls: list[dict[str, Any]] = field(default_factory=list)
     stopped: str | None = None
+    provider: str = "runway"
+    siblings: list["SpendGuard"] = field(default_factory=list, repr=False)
 
     def __post_init__(self) -> None:
         self._flush()  # Protokoll existiert ab Start (0 Credits)
@@ -322,7 +374,22 @@ class SpendGuard:
 
     @property
     def spent_eur(self) -> float:
-        return self.pricing.credits_to_eur(self.spent_credits, self.cfg)
+        return self.pricing.credits_to_eur(self.spent_credits, self.cfg, self.provider)
+
+    @property
+    def run_spent_eur(self) -> float:
+        """Ausgaben des gesamten Laufs (dieser Wächter + verbundene Wächter)."""
+        return round(self.spent_eur + sum(s.spent_eur for s in self.siblings), 4)
+
+    def link(self, other: "SpendGuard") -> None:
+        """Beide Wächter teilen sich ab jetzt dasselbe Limit."""
+        if other is not self and other not in self.siblings:
+            self.siblings.append(other)
+            other.siblings.append(self)
+
+    def _projected_eur(self, own_credits: float) -> float:
+        return (self.pricing.credits_to_eur(own_credits, self.cfg, self.provider)
+                + sum(s.spent_eur for s in self.siblings))
 
     def _event(self, job_id: str, event: str, credits: float, **extra: Any) -> None:
         self.calls.append({"job": job_id, "event": event, "credits": credits, "utc": _now(), **extra})
@@ -330,13 +397,14 @@ class SpendGuard:
 
     def authorize(self, job_id: str, credits: float) -> None:
         """Vor dem Senden: Kosten vormerken (gilt als ausgegeben, bis Runway etwas anderes meldet)."""
-        if self.stopped:
-            raise BudgetError(f"Lauf gestoppt ({self.stopped}) – keine weiteren Aufrufe")
+        halted = self.stopped or next((s.stopped for s in self.siblings if s.stopped), None)
+        if halted:
+            raise BudgetError(f"Lauf gestoppt ({halted}) – keine weiteren Aufrufe")
         if credits <= 0:
             raise BudgetError(f"{job_id}: Kostenschätzung fehlt oder ist 0 – Abbruch")
         if job_id in self.charges:
             raise BudgetError(f"{job_id}: wurde bereits eingereicht – keine Doppel-Einreichung")
-        projected = self.pricing.credits_to_eur(self.spent_credits + credits, self.cfg)
+        projected = self._projected_eur(self.spent_credits + credits)
         if projected > self.limit_eur + 1e-9:
             raise BudgetError(
                 f"{job_id}: würde {projected:.2f} € erreichen, Reservierung erlaubt {self.limit_eur:.2f} € – STOP"
@@ -356,12 +424,12 @@ class SpendGuard:
         if api_credits > ours * (1 + PRICE_DRIFT_TOLERANCE) + 1:
             self.stopped = "price_drift"
             raise PriceDriftError(
-                f"{job_id}: Runway meldet {api_credits:.0f} Credits, Tabelle {ours:.0f} – "
-                "Preise haben sich geändert. Task wird storniert, Lauf gestoppt."
+                f"{job_id}: {self.provider} meldet {api_credits:.0f} Credits, Tabelle {ours:.0f} – "
+                "Preise haben sich geändert. Lauf gestoppt (Runway-Task wird storniert)."
             )
-        if self.pricing.credits_to_eur(self.spent_credits, self.cfg) > self.limit_eur + 1e-9:
+        if self._projected_eur(self.spent_credits) > self.limit_eur + 1e-9:
             self.stopped = "limit"
-            raise BudgetError(f"{job_id}: Runway-Kosten überschreiten die Reservierung – Stopp")
+            raise BudgetError(f"{job_id}: gemeldete Kosten überschreiten die Reservierung – Stopp")
 
     def settle(self, job_id: str, final_credits: float | None) -> None:
         """Endgültige Kosten laut Runway (Task-Feld cost.credits)."""
@@ -380,7 +448,7 @@ class SpendGuard:
         if self.log_path:
             self.log_path.parent.mkdir(parents=True, exist_ok=True)
             self.log_path.write_text(
-                json.dumps({"spent_credits": self.spent_credits, "stopped": self.stopped,
+                json.dumps({"provider": self.provider, "spent_credits": self.spent_credits, "stopped": self.stopped,
                             "charges": self.charges, "calls": self.calls}, indent=2),
                 encoding="utf-8",
             )
@@ -390,7 +458,9 @@ class SpendGuard:
 # Freigabe für bezahlte Läufe
 # ---------------------------------------------------------------------
 def require_paid_approval(cfg: BudgetConfig, approval_text: str | None, env: dict | None = None,
-                          require_passphrase: bool = True) -> None:
+                          require_passphrase: bool = True,
+                          secrets: tuple[str, ...] = ("RUNWAYML_API_SECRET",)) -> None:
+    """secrets: Namen der API-Schlüssel, die der Plan braucht (nur Vorhandensein wird geprüft)."""
     env = os.environ if env is None else env
     if not cfg.paid_rendering_enabled:
         raise ApprovalError(
@@ -399,8 +469,9 @@ def require_paid_approval(cfg: BudgetConfig, approval_text: str | None, env: dic
         )
     if (approval_text or "").strip() != cfg.approval_phrase:
         raise ApprovalError("Bestätigungsphrase fehlt oder ist falsch – kein bezahlter Render.")
-    if not env.get("RUNWAYML_API_SECRET"):
-        raise ApprovalError("RUNWAYML_API_SECRET ist nicht gesetzt (Secret der Umgebung 'paid-render').")
+    for name in secrets:
+        if not env.get(name):
+            raise ApprovalError(f"{name} ist nicht gesetzt (Secret der Umgebung 'paid-render').")
     if require_passphrase and len(env.get("ARTIFACT_PASSPHRASE", "")) < 16:
         raise ApprovalError(
             "ARTIFACT_PASSPHRASE fehlt oder ist kürzer als 16 Zeichen. Das Repo ist öffentlich – "

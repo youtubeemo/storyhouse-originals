@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import math
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -10,6 +11,8 @@ import yaml
 
 EPS = 1e-6
 MAX_PROMPT_CHARS = 1000  # Runway-Limit für promptText
+AUDIO_PROVIDERS = ("elevenlabs", "runway")
+EL_VOICE_ID = re.compile(r"^[A-Za-z0-9]{20}$")
 
 
 class EpisodeError(ValueError):
@@ -53,6 +56,30 @@ class Episode:
     @property
     def sound(self) -> dict[str, Any]:
         return self.data.get("sound_design", {})
+
+    @property
+    def audio_provider(self) -> str:
+        """Woher Stimmen/SFX/Musik kommen: 'elevenlabs' (Standard) oder 'runway'."""
+        return str((self.data.get("audio") or {}).get("provider", "elevenlabs"))
+
+    @property
+    def outro(self) -> dict[str, Any] | None:
+        o = self.data.get("outro") or {}
+        return o if o.get("enabled") else None
+
+    @property
+    def outro_duration(self) -> float:
+        return float(self.outro["duration_s"]) if self.outro else 0.0
+
+    @property
+    def total_duration(self) -> float:
+        """Film + Outro."""
+        return round(self.duration + self.outro_duration, 3)
+
+    @property
+    def music_generate(self) -> dict[str, Any] | None:
+        g = (self.sound.get("music") or {}).get("generate") or {}
+        return g if g.get("enabled") else None
 
     @property
     def subtitle_style(self) -> dict[str, Any]:
@@ -235,6 +262,32 @@ def validate_episode(ep: Episode) -> None:
     if ep.dialogue and float(ep.dialogue[0]["at"]) > 1.0:
         errors.append("Hook: erste Dialogzeile muss innerhalb der ersten Sekunde starten")
 
+    # Ton-Anbieter, Stimmen, Musik, Outro
+    if ep.audio_provider not in AUDIO_PROVIDERS:
+        errors.append(f"audio.provider muss einer von {AUDIO_PROVIDERS} sein")
+    speaking = {line.get("character") for line in ep.dialogue}
+    for name in sorted(c for c in speaking if c in ep.characters):
+        voice = ep.characters[name].get("voice") or {}
+        if not voice.get("preset_id"):
+            errors.append(f"{name}: voice.preset_id (Runway-Ausweichstimme) fehlt")
+        if ep.audio_provider == "elevenlabs" and not EL_VOICE_ID.match(str(voice.get("voice_id", ""))):
+            errors.append(f"{name}: voice.voice_id fehlt oder ist keine ElevenLabs-Voice-ID (20 Zeichen)")
+    gen = (ep.sound.get("music") or {}).get("generate") or {}
+    if gen.get("enabled") and not " ".join(str(gen.get("prompt", "")).split()):
+        errors.append("sound_design.music.generate.prompt fehlt")
+    outro = ep.data.get("outro") or {}
+    if outro.get("enabled"):
+        if not 1.0 <= float(outro.get("duration_s", 0)) <= 6.0:
+            errors.append("outro.duration_s muss 1–6 s sein")
+        if not str(outro.get("title", "")).strip():
+            errors.append("outro.title fehlt")
+        sting = outro.get("sting")
+        if sting:
+            if not str(sting.get("prompt", "")).strip():
+                errors.append("outro.sting.prompt fehlt")
+            if not 0.5 <= float(sting.get("duration", 0)) <= 30:
+                errors.append("outro.sting.duration muss 0.5–30 s sein")
+
     for sfx in ep.sound.get("sfx", []):
         if not 0 <= float(sfx["at"]) < ep.duration:
             errors.append(f"SFX {sfx['id']}: at außerhalb des Films")
@@ -246,6 +299,4 @@ def validate_episode(ep: Episode) -> None:
 
 
 def _tags_in(text: str) -> list[str]:
-    import re
-
     return re.findall(r"@([a-z0-9_]+)", text or "")

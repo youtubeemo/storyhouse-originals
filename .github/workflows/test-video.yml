@@ -1,8 +1,11 @@
 # =====================================================================
-#  Testvideo – NUR MANUELL (Actions → "Testvideo" → Run workflow)
+#  Film produzieren – NUR MANUELL (Actions → "Film produzieren" → Run workflow)
+#
+#  Bild: Runway · Ton: ElevenLabs (Dialoge, Soundeffekte, optional Musik) ·
+#  Schnitt/Sync/Mischung/Untertitel/Outro: FFmpeg. Ergebnis: vertikales MP4.
 #
 #  mode = dry-run      kostenlos: Platzhalterbilder + Platzhalterton, echter
-#                      Schnitt/Mischung/Untertitel/Loop; kein Secret, keine API.
+#                      Schnitt/Mischung/Untertitel/Outro/Loop; kein Secret, keine API.
 #  mode = paid-render  kostenpflichtig: nur wenn ALLE Sperren offen sind:
 #                      1) Lauf auf main gestartet
 #                      2) config/budget.yaml paid_rendering_enabled: true (per PR)
@@ -12,11 +15,14 @@
 #                      5) Preise geprüft und < 45 Tage alt
 #                      6) Budget-Reservierung passt in Lauf- und Gesamtbudget,
 #                         keine offene Reservierung, Runway-Guthaben reicht
+#                      7) ElevenLabs-Konto: Kontingent reicht, kommerzielle Lizenz,
+#                         nutzungsbasierte Abrechnung (Overage) ist AUS, Stimme vorhanden
+#  Der Workflow kauft nichts: kein Abo, kein Guthaben, keine Nachbuchung.
 #  Es wird NICHTS veröffentlicht. Bezahlte Ergebnisse werden VERSCHLÜSSELT
 #  hochgeladen (öffentliches Repo: Artefakte sind für alle angemeldeten
 #  GitHub-Nutzer abrufbar).
 # =====================================================================
-name: Testvideo
+name: Film produzieren
 
 on:
   workflow_dispatch:
@@ -32,7 +38,7 @@ on:
         options: [test, final]
         default: test
       scenes:
-        description: "all | S01,S03 | S02-S04"
+        description: "all (ganzer Film) | S01,S03 | S02-S04"
         type: string
         default: all
       preview:
@@ -93,7 +99,8 @@ jobs:
     timeout-minutes: 90
     # Settings → Environments → paid-render:
     #   Required reviewers = Produktion, Deployment branches = nur main,
-    #   Secrets RUNWAYML_API_SECRET + ARTIFACT_PASSPHRASE (nur hier, nicht als Repo-Secret)
+    #   Secrets RUNWAYML_API_SECRET + ELEVENLABS_API_KEY + ARTIFACT_PASSPHRASE
+    #   (nur hier, nicht als Repo-Secret)
     environment:
       name: paid-render
     # Nie zwei bezahlte Läufe gleichzeitig (Ledger-Konsistenz).
@@ -108,6 +115,7 @@ jobs:
       STORYHOUSE_APPROVAL: ${{ inputs.approval }}
       STORYHOUSE_RUN_ID: run-${{ github.run_id }}-${{ github.run_attempt }}
       RUNWAYML_API_SECRET: ${{ secrets.RUNWAYML_API_SECRET }}
+      ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
       ARTIFACT_PASSPHRASE: ${{ secrets.ARTIFACT_PASSPHRASE }}
     steps:
       - uses: actions/checkout@v4

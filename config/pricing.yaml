@@ -1,6 +1,7 @@
 # =====================================================================
 #  Runway API – Preise (Runway Dev, 1 Credit = 0.01 USD)
 #
+#  Runway (Bild, Video; Ton nur noch als Ausweichweg --audio-provider runway)
 #  Abgeglichen am 14.11.2026 mit:
 #    - https://docs.dev.runwayml.com/guides/pricing/
 #    - offizielles SDK runwayml/sdk-python @ 949ac4e (12.11.2026)
@@ -39,6 +40,41 @@ sound_effect:                # 1 Credit pro Sekunde bei angegebener Dauer (aufge
 
 music:                       # auf der Preisseite NICHT gelistet -> für bezahlte Läufe gesperrt
   eleven_music_v2_5: {credits_per_second: 2, verified: false}
+
+# =====================================================================
+#  ElevenLabs direkt (api.elevenlabs.io) – Standard-Tonquelle der Pipeline
+#
+#  Abgeglichen am 14.11.2026 mit:
+#    - https://elevenlabs.io/pricing/api            (Listenpreise in USD)
+#    - https://elevenlabs.io/docs/overview/capabilities/sound-effects
+#    - https://elevenlabs.io/docs/api-reference/... (Endpunkte, siehe docs/API_ABGLEICH.md)
+#
+#  ElevenLabs rechnet je nach Konto in Credits (Abo-Kontingent) oder in USD
+#  (API-Listenpreis). Die Pipeline rechnet bewusst mit dem TEUREREN der beiden
+#  Modelle – Credits, bewertet mit dem teuersten Credit aller Tarife
+#  (Starter: 6 USD / 30.000 Credits = 0,0002 USD):
+#
+#                     Pipeline (Credits -> USD)      offizieller API-Listenpreis
+#    Sprache v3       1 Credit/Zeichen = 0,20 $/1k   0,08 $/1k Zeichen
+#    Soundeffekte     40 Credits/s     = 0,48 $/min  0,12 $/min
+#    Musik            15 Credits/s     = 0,18 $/min  0,15 $/min
+#
+#  Die Abo-Gebühr selbst zahlt ihr direkt an ElevenLabs; sie läuft NICHT über
+#  diese Pipeline und muss von Hand ins Budget eingerechnet werden.
+# =====================================================================
+elevenlabs:
+  usd_per_credit: 0.0002
+  models:                    # in beiden Profilen gleich
+    tts: eleven_v3
+    sfx: eleven_text_to_sound_v2
+    music: music_v1
+  tts:                       # Credits pro Zeichen (inkl. Regie-Tags wie [whispers])
+    eleven_v3:              {credits_per_char: 1, verified: true}
+    eleven_multilingual_v2: {credits_per_char: 1, verified: true}
+  sound_effect:              # Credits pro Sekunde bei angegebener Dauer
+    eleven_text_to_sound_v2: {credits_per_second: 40, verified: true}
+  music:                     # 0,15 $/min offiziell; 900 Credits/min laut Tarifübersichten
+    music_v1: {credits_per_second: 15, verified: true}
 
 profiles:
   test:                      # günstiger Testlauf

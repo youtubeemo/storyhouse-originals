@@ -15,6 +15,8 @@ SECRET_PATTERNS = [
     re.compile(r"key_[0-9a-f]{32,}"),                                   # Runway-Schlüsselformat
     re.compile(r"RUNWAYML_API_SECRET[ \t]*[:=][ \t]*['\"]?[A-Za-z0-9_\-]{16,}"),
     re.compile(r"(?i)(api[_-]?key|secret)\s*[:=]\s*['\"][A-Za-z0-9_\-]{24,}['\"]"),
+    re.compile(r"\bsk_[0-9a-f]{32,}"),                                 # ElevenLabs-Schlüsselformat
+    re.compile(r"ELEVENLABS_API_KEY[ \t]*[:=][ \t]*['\"]?[A-Za-z0-9_\-]{16,}"),
 ]
 TEXT_SUFFIXES = {".py", ".yml", ".yaml", ".md", ".json", ".toml", ".txt", ".sh", ".example", ""}
 

@@ -28,6 +28,8 @@ jobs:
         run: pytest -q
       - name: Episode validieren
         run: python -m storyhouse validate
+      - name: Dry-Run (Vorschau, 0 €, kein Secret, kein API-Aufruf)
+        run: python -m storyhouse dry-run --preview --out output/ci-dry-run
       - name: Kostenschätzung (Test & Final)
         run: |
           python -m storyhouse estimate --profile test

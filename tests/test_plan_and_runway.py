@@ -71,15 +71,20 @@ def test_sfx_requires_duration():
 # ---------------------------------------------------------------- Plan
 def test_plan_structure_and_every_payload_valid(episode, pricing):
     for profile in ("test", "final"):
-        plan = build_plan(episode, pricing, profile=profile)
-        ids = [j.id for j in plan.jobs]
-        assert ids[:2] == ["REF_maya", "REF_bathroom"]
-        assert sum(1 for i in ids if i.startswith("VID_")) == 8
-        seen = set()
-        for j in plan.jobs:
-            validate_payload(j.kind, j.payload)
-            assert set(j.depends) <= seen, j.id
-            seen.add(j.id)
+        for provider in ("elevenlabs", "runway"):
+            plan = build_plan(episode, pricing, profile=profile, audio_provider=provider)
+            ids = [j.id for j in plan.jobs]
+            assert ids[:2] == ["REF_maya", "REF_bathroom"]
+            assert sum(1 for i in ids if i.startswith("VID_")) == 8
+            seen = set()
+            for j in plan.jobs:
+                j.validate()
+                if j.provider == "runway":
+                    validate_payload(j.kind, j.payload)
+                assert set(j.depends) <= seen, j.id
+                seen.add(j.id)
+            audio = {j.provider for j in plan.jobs if j.kind in ("tts", "sfx", "music")}
+            assert audio == {provider}
 
 
 def test_default_loop_uses_ffmpeg_seam_not_unsupported_keyframe(episode, pricing):
@@ -103,7 +108,7 @@ def test_keyframe_last_strategy_switches_to_capable_model(episode, pricing):
 
 
 def test_costs_match_official_price_table(episode, pricing):
-    plan = build_plan(episode, pricing, profile="final")
+    plan = build_plan(episode, pricing, profile="final", audio_provider="runway")
     for j in plan.jobs:
         if j.kind == "video":
             assert j.credits == 12 * j.payload["duration"]

@@ -38,3 +38,18 @@ ledger_file: ledger.json
 # Bestätigungsphrase, die für einen kostenpflichtigen Lauf im Workflow
 # exakt eingegeben werden muss.
 approval_phrase: "ICH GEBE DIESEN RENDER FREI"
+
+# ---------------------------------------------------------------------
+# ElevenLabs (Stimmen, Soundeffekte, Musik)
+# ---------------------------------------------------------------------
+elevenlabs:
+  # Der Free-Tarif enthält KEINE kommerzielle Lizenz (Namensnennung nötig,
+  # keine Monetarisierung). Solange true, verweigert der Preflight bezahlte
+  # Läufe auf einem Free-Konto. Nur für rein private Tests per PR auf false.
+  require_commercial_license: true
+  # Musik wird erst generiert, wenn die Produktion die Eleven-Music-Bedingungen
+  # (elevenlabs.io/music-terms) für diesen Verwendungszweck geprüft hat und das
+  # hier per PR bestätigt. Bis dahin: Drone-Musikbett (Soundeffekt) als Ersatz.
+  music_license_confirmed: false
+  # Nicht konfigurierbar (im Code fest): Nutzungsbasierte Abrechnung/Overage
+  # muss im ElevenLabs-Konto AUS sein, sonst bricht der Preflight ab.
