@@ -6,6 +6,7 @@ synchronisiert, mischt, brennt Untertitel ein und hängt das StoryHouse-Outro an
 from __future__ import annotations
 
 import json
+import shutil
 import time
 from pathlib import Path
 from typing import Callable
@@ -168,10 +169,12 @@ PRIVATE_NOTICE = ("PRIVATER TEST - nicht kommerziell, nicht zur Veroeffentlichun
 
 def paid_render(ep_full: Episode, plan: Plan, client, out_dir: Path, scenes: str = "all",
                 downloader: Callable[[str, Path], Path] | None = None, log: Callable[[str], None] = print,
-                private_only: bool = False) -> dict:
+                private_only: bool = False, cache=None) -> dict:
     """Führt einen freigegebenen Plan aus. Budgetprüfungen erfolgen in den Clients (SpendGuard).
 
     client: ein Runway-Client oder {"runway": ..., "elevenlabs": ...}.
+    cache:  optional ein storyhouse.szenen_cache.SzenenCache – bereits bezahlte, unveränderte Aufträge
+            werden daraus genommen (0 €), neue Ergebnisse sofort hineingelegt (auch wenn später etwas scheitert).
     """
     from storyhouse.runway import download
 
@@ -191,16 +194,32 @@ def paid_render(ep_full: Episode, plan: Plan, client, out_dir: Path, scenes: str
         # oder lehnt ElevenLabs ab, stoppt der Lauf, BEVOR für Bild/Video Geld ausgegeben wird.
         ordered = ([j for j in plan.jobs if j.provider == "elevenlabs"]
                    + [j for j in plan.jobs if j.provider != "elevenlabs"])
+        keys = {}
+        if cache is not None:
+            from storyhouse.szenen_cache import job_keys
+            keys = job_keys(plan.jobs)
+        reused = []
         for job in ordered:
+            cached = cache.get(keys[job.id]) if cache is not None else None
+            if cached is not None:
+                log(f"↺ {job.id} aus dem Cache (0 €)")
+                raw.mkdir(parents=True, exist_ok=True)
+                files[job.id] = Path(shutil.copy2(cached, raw / f"{job.id}.{job.ext}"))
+                reused.append(job.id)
+                if job.kind == "image":
+                    outputs[job.id] = ff.image_to_data_uri(files[job.id])
+                continue
             log(f"→ {job.id} ({job.provider}/{job.model}, ~{job.credits:.0f} Credits)")
             if job.provider == "elevenlabs":
                 # synchron: Audiodaten kommen direkt zurück, keine URL
                 files[job.id] = clients["elevenlabs"].run_job(job, raw / f"{job.id}.{job.ext}")
-                continue
-            url = clients["runway"].run_job(job, outputs)
-            files[job.id] = downloader(url, raw / f"{job.id}.{job.ext}")
-            # Bilder werden als Data-URI weitergereicht (keine Abhängigkeit von ablaufenden URLs)
-            outputs[job.id] = ff.image_to_data_uri(files[job.id]) if job.kind == "image" else url
+            else:
+                url = clients["runway"].run_job(job, outputs)
+                files[job.id] = downloader(url, raw / f"{job.id}.{job.ext}")
+                # Bilder werden als Data-URI weitergereicht (keine Abhängigkeit von ablaufenden URLs)
+                outputs[job.id] = ff.image_to_data_uri(files[job.id]) if job.kind == "image" else url
+            if cache is not None:
+                cache.put(keys[job.id], files[job.id])
     finally:
         (out_dir / "outputs.json").parent.mkdir(parents=True, exist_ok=True)
         (out_dir / "outputs.json").write_text(json.dumps({k: str(v) for k, v in files.items()}, indent=2),
@@ -222,6 +241,6 @@ def paid_render(ep_full: Episode, plan: Plan, client, out_dir: Path, scenes: str
                 "audio_provider": plan.audio_provider,
                 "license": {"elevenlabs_commercial": not private_only,
                             "usage": "privat, nicht kommerziell" if private_only else "kommerziell (bezahlter Tarif)"},
-                "paid_api_calls": len(plan.jobs), "elapsed_s": round(time.time() - started, 1), **result}
+                "paid_api_calls": len(plan.jobs) - len(reused), "reused_from_cache": reused, "elapsed_s": round(time.time() - started, 1), **result}
     (out_dir / "manifest.json").write_text(json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8")
     return manifest

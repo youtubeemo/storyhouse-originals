@@ -108,7 +108,7 @@ werkzeuge:
   quelle: platform.minimax.io/docs/guides/pricing-paygo
   status: vorbereitet
   kosten_schaetzung: '768p 6 s: 0,28 $ (≈ 4,7 ¢/s, günstiger als gen4.5 mit 12 ¢/s)'
-  naechster_schritt: A/B-Test einer Szene gegen gen4.5 – nur mit Freigabe und eigenem Budget
+  naechster_schritt: "Adapter storyhouse/zusatz_anbieter.py (HailuoVideo) mit Attrappen-Tests; freischalten über zusatz_anbieter.minimax + Secret MINIMAX_API_KEY"
   freigabe_noetig: true
   geprueft_am: '2026-11-15'
 - name: MiniMax Speech
@@ -136,7 +136,7 @@ werkzeuge:
   quelle: hedra.com/models/video/hedra/character-3
   status: vorbereitet
   kosten_schaetzung: 'Character-3: 720p 5 ¢/s → 20 s Dialogszenen ≈ 1 $'
-  naechster_schritt: Lippensync für Dialog-Nahaufnahmen (Phase 2), nur mit Freigabe
+  naechster_schritt: "Adapter vorbereitet (HedraSprecher), Endpunkte noch gegen offizielle Doku prüfen; dann zusatz_anbieter.hedra + HEDRA_API_KEY"
   freigabe_noetig: true
   geprueft_am: '2026-11-15'
 - name: Nano Banana (Gemini Image)
@@ -150,7 +150,7 @@ werkzeuge:
   quelle: ai.google.dev/gemini-api/docs/pricing
   status: vorbereitet
   kosten_schaetzung: ~0,04–0,13 $/Bild
-  naechster_schritt: Alternative für Keyframes mit Figurenkonsistenz – nur mit Freigabe
+  naechster_schritt: "Adapter GeminiBild mit Attrappen-Tests; freischalten über zusatz_anbieter.gemini + Secret GEMINI_API_KEY"
   freigabe_noetig: true
   geprueft_am: '2026-11-15'
 - name: Lovart
@@ -229,6 +229,6 @@ werkzeuge:
   quelle: github.com/SYSTRAN/faster-whisper
   status: vorbereitet
   kosten_schaetzung: 0 €
-  naechster_schritt: Wortgenaue Untertitel aus der fertigen Tonspur (statt Schätzung)
+  naechster_schritt: "storyhouse/transkript.py (optional, Attrappen-Tests) prüft Dialog gegen Drehbuch; pip install faster-whisper bei Bedarf"
   freigabe_noetig: false
   geprueft_am: '2026-11-15'

@@ -121,6 +121,9 @@ def main(argv: list[str] | None = None) -> int:
         p.add_argument("--ledger", default=".ledger/ledger.json")
         p.add_argument("--run-id", default=os.environ.get("STORYHOUSE_RUN_ID", "local"))
         p.add_argument("--out", default="output/render")
+        if name == "render":
+            p.add_argument("--cache", default=None,
+                           help="Ordner mit Zwischenergebnissen früherer Läufe: unveränderte Aufträge kosten 0 €")
 
     p = sub.add_parser("kosten", help="Kosten für längere Filme hochrechnen (keine API)"); _common(p)
     p.add_argument("--minuten", nargs="+", type=float, default=[1, 5, 10])
@@ -278,7 +281,13 @@ def _dispatch(args: argparse.Namespace) -> int:
             raise BudgetError(f"Runway-Guthaben {balance['before']:.0f} < benötigt {plan.credits("runway"):.0f} Credits")
         out.mkdir(parents=True, exist_ok=True)
         try:
-            manifest = paid_render(ep, plan, clients, out, scenes=args.scenes, private_only=private_only)
+            cache = None
+            if args.cache:
+                from storyhouse.szenen_cache import SzenenCache
+                cache = SzenenCache(args.cache)
+                hit, rest = cache.coverage(plan.jobs)
+                print(f"Zwischenspeicher: {len(hit)} Aufträge wiederverwendet, {len(rest)} neu")
+            manifest = paid_render(ep, plan, clients, out, scenes=args.scenes, private_only=private_only, cache=cache)
         finally:
             balance["after"] = client.credit_balance()
             (out / "balance.json").write_text(json.dumps(balance), encoding="utf-8")
