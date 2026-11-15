@@ -114,6 +114,8 @@ def validate_payload(kind: str, payload: dict[str, Any]) -> None:
         if payload.get("ratio") not in IMAGE_RATIOS:
             errors.append(f"ratio {payload.get('ratio')} nicht erlaubt")
         refs = payload.get("referenceImages") or []
+        if "referenceImages" in payload and not refs:
+            errors.append("referenceImages ist leer – Feld weglassen oder 1–3 Referenzbilder angeben (sonst HTTP 400)")
         if len(refs) > spec["max_refs"]:
             errors.append(f"max. {spec['max_refs']} Referenzbilder")
         if spec["refs_required"] and not refs:

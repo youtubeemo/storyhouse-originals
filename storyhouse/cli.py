@@ -16,6 +16,7 @@ from pathlib import Path
 from storyhouse.budget import (
     ApprovalError, BudgetConfig, BudgetError, Ledger, Pricing, SpendGuard, check_affordable,
     finalize, remaining_eur, require_paid_approval, require_paid_scope, require_scope_budget, reserve,
+    with_margin,
 )
 from storyhouse.episode import EpisodeError, load_episode
 from storyhouse.plan import build_plan, format_estimate
@@ -123,9 +124,10 @@ def main(argv: list[str] | None = None) -> int:
         p.add_argument("--ledger", default=".ledger/ledger.json")
         p.add_argument("--run-id", default=os.environ.get("STORYHOUSE_RUN_ID", "local"))
         p.add_argument("--out", default="output/render")
-        if name == "render":
+        if name in ("preflight", "reserve", "render"):
             p.add_argument("--cache", default=None,
-                           help="Ordner mit Zwischenergebnissen früherer Läufe: unveränderte Aufträge kosten 0 €")
+                           help="Ordner mit Zwischenergebnissen früherer Läufe: unveränderte Aufträge kosten 0 € "
+                                "und werden weder reserviert noch neu erzeugt")
 
     p = sub.add_parser("kosten", help="Kosten für längere Filme hochrechnen (keine API)"); _common(p)
     p.add_argument("--minuten", nargs="+", type=float, default=[1, 5, 10])
@@ -233,6 +235,22 @@ def _dispatch(args: argparse.Namespace) -> int:
 
     ledger = Ledger.load(args.ledger)
     approval = os.environ.get("STORYHOUSE_APPROVAL", "")
+
+    if args.cmd in ("preflight", "reserve", "render") and args.cache:
+        # Schon bezahlte, unveränderte Aufträge liegen im Zwischenspeicher: Sie kosten nichts mehr und
+        # zählen deshalb weder für die Reservierung noch für das Episodenbudget.
+        from dataclasses import replace as _replace
+
+        from storyhouse.szenen_cache import SzenenCache
+
+        hit, rest = SzenenCache(args.cache).coverage(plan.jobs)
+        if hit:
+            open_plan = _replace(plan, jobs=[j for j in plan.jobs if j.id in rest])
+            estimate_eur = max(open_plan.total_eur(pricing, cfg), 0.01)
+            if args.cmd != "render":
+                _summary(f"♻️ Zwischenspeicher: {len(hit)} von {len(plan.jobs)} Aufträgen schon bezahlt (0 €), "
+                         f"{len(rest)} offen – noch zu bezahlen: {estimate_eur:.2f} € "
+                         f"(mit Aufschlag {with_margin(estimate_eur, cfg):.2f} €)")
 
     if args.cmd in ("preflight", "reserve", "render"):
         require_paid_scope(cfg, plan)
