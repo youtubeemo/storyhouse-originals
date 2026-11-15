@@ -41,6 +41,7 @@ def test_plan_bleibt_unter_zehn_euro_und_ohne_musikjob(e0):
 
 def test_nur_etage0_ist_freigegeben_und_gedeckelt(e0, tmp_path):
     pricing, cfg = Pricing.load(), BudgetConfig.load()
+    cfg = replace(cfg, scope_episodes=(e0.slug,))               # früherer Umfang: das Testvideo
     plan = build_plan(e0, pricing, profile="final", scenes="all")
     require_paid_scope(cfg, plan)
     with pytest.raises(ApprovalError, match="Profil 'test'"):

@@ -14,12 +14,12 @@ ENV_OK = {"RUNWAYML_API_SECRET": "x", "ARTIFACT_PASSPHRASE": "a-very-long-passph
 
 # ---------------------------------------------------------------- Konfiguration
 def test_repository_config_is_safe_by_default(cfg):
-    # Freigeschaltet NUR für das Testvideo ETAGE 0 mit höchstens 10 € (Freigabe 15.11.2026).
+    # Freigeschaltet NUR für die Bild-Storyboard-Stufe von ETAGE 0 – S01E01 mit höchstens 10 € (15.11.2026).
     if cfg.paid_rendering_enabled:
         assert cfg.scope_profiles == ("final",)
         assert cfg.el_require_commercial_license is True, "kommerziell: Free-Tarif wird abgelehnt"
-        assert cfg.scope_scenes == ("S01", "S02", "S03", "S04", "S05")
-        assert cfg.scope_episodes == ("etage-0-der-verbotene-knopf",), "Freigabe nur für ETAGE 0"
+        assert cfg.scope_scenes == ("all",)
+        assert cfg.scope_episodes == ("etage-0-s01e01-der-verbotene-knopf",), "Freigabe nur für S01E01"
         assert cfg.scope_budget_eur == 10.0, "höchstens 10 € für alle Läufe zusammen"
         assert cfg.scope_audio_providers == ("elevenlabs",)
         assert cfg.el_music_license_confirmed is False, "Musik bleibt gesperrt"
@@ -31,8 +31,7 @@ def test_free_tier_only_for_private_test_scope(cfg):
     """Ohne kommerzielle Lizenz: nur Testprofil und ausdrücklich aufgezählte Szenen."""
     from dataclasses import replace
 
-    assert "all" not in cfg.scope_scenes
-    cfg = replace(cfg, el_require_commercial_license=False, scope_profiles=("test",))   # früherer Free-Test
+    cfg = replace(cfg, el_require_commercial_license=False, scope_profiles=("test",), scope_scenes=("S01",))   # früherer Free-Test
     cfg.validate()
     for bad in ({"scope_profiles": ("test", "final")}, {"scope_profiles": ("final",)},
                 {"scope_profiles": None}, {"scope_scenes": ("all",)}, {"scope_scenes": None}):

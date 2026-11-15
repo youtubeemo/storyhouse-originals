@@ -1190,11 +1190,11 @@ sound_design:
     # --- Atmosphären ---
     - {id: regen_aussen, label: "Atmo: starker Regen auf Straße", at: 0.0, until: 23.1, duration: 22, loop: true, repeat_to_fill: true, gain_db: -15, fade_in: 0.2, fade_out: 0.1,
        prompt: "Heavy steady rain on a city street at night, water running in gutters, distant rumble, no voices, seamless loop"}
-    - {id: regen_innen, label: "Atmo: Regen dumpf durch Mauern + Neonbrummen", at: 23.0, until: 46.0, duration: 22, loop: true, repeat_to_fill: true, gain_db: -27, fade_in: 0.2, fade_out: 1.5,
+    - {id: regen_innen, label: "Atmo: Regen dumpf durch Mauern + Neonbrummen", at: 23.0, until: 46.0, duration: 12, loop: true, repeat_to_fill: true, gain_db: -27, fade_in: 0.2, fade_out: 1.5,
        prompt: "Muffled rain heard from inside a concrete stairwell, faint fluorescent tube hum, large empty reverberant hall, seamless loop"}
-    - {id: aufzug_raum, label: "Atmo: Kabinenbrummen", at: 40.0, until: 77.3, duration: 20, loop: true, repeat_to_fill: true, gain_db: -27, fade_in: 2.0,
+    - {id: aufzug_raum, label: "Atmo: Kabinenbrummen", at: 40.0, until: 77.3, duration: 12, loop: true, repeat_to_fill: true, gain_db: -27, fade_in: 2.0,
        prompt: "Old elevator cabin interior room tone, low electrical hum, faint cable creaks, close and claustrophobic, seamless loop"}
-    - {id: flur_raum, label: "Atmo: kalter Flur, ferne Lüftung", at: 99.0, until: 167.6, duration: 22, loop: true, repeat_to_fill: true, gain_db: -26, fade_in: 2.5,
+    - {id: flur_raum, label: "Atmo: kalter Flur, ferne Lüftung", at: 99.0, until: 167.6, duration: 12, loop: true, repeat_to_fill: true, gain_db: -26, fade_in: 2.5,
        prompt: "Cold hollow air in a very long empty concrete corridor, distant ventilation drone, faint electrical buzz of emergency lights, seamless loop"}
     # --- Musik M1–M6 ---
     - {id: m1_flucht, label: "M1 Flucht: treibender tiefer Puls", at: 0.2, until: 23.0, duration: 22, loop: true, repeat_to_fill: true, gain_db: -19, fade_in: 0.3, fade_out: 0.05,
