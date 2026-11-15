@@ -16,7 +16,8 @@ ENV_OK = {"RUNWAYML_API_SECRET": "x", "ARTIFACT_PASSPHRASE": "a-very-long-passph
 def test_repository_config_is_safe_by_default(cfg):
     # Freigeschaltet NUR für das Testvideo ETAGE 0 mit höchstens 10 € (Freigabe 15.11.2026).
     if cfg.paid_rendering_enabled:
-        assert cfg.scope_profiles == ("test",), "Freigabe nur für das Testprofil"
+        assert cfg.scope_profiles == ("final",)
+        assert cfg.el_require_commercial_license is True, "kommerziell: Free-Tarif wird abgelehnt"
         assert cfg.scope_scenes == ("S01", "S02", "S03", "S04", "S05")
         assert cfg.scope_episodes == ("etage-0-der-verbotene-knopf",), "Freigabe nur für ETAGE 0"
         assert cfg.scope_budget_eur == 10.0, "höchstens 10 € für alle Läufe zusammen"
@@ -30,8 +31,9 @@ def test_free_tier_only_for_private_test_scope(cfg):
     """Ohne kommerzielle Lizenz: nur Testprofil und ausdrücklich aufgezählte Szenen."""
     from dataclasses import replace
 
-    assert cfg.el_require_commercial_license is False, "Repo: Free-Tarif für privaten Test freigegeben"
-    assert cfg.scope_profiles == ("test",) and "all" not in cfg.scope_scenes
+    assert "all" not in cfg.scope_scenes
+    cfg = replace(cfg, el_require_commercial_license=False, scope_profiles=("test",))   # früherer Free-Test
+    cfg.validate()
     for bad in ({"scope_profiles": ("test", "final")}, {"scope_profiles": ("final",)},
                 {"scope_profiles": None}, {"scope_scenes": ("all",)}, {"scope_scenes": None}):
         with pytest.raises(BudgetError, match="require_commercial_license"):

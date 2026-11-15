@@ -18,7 +18,9 @@ paid_rendering_enabled: true
 # Workflow eingegeben wird. Erweitern (z. B. scenes: all, profiles: [test, final])
 # nur per eigenem PR nach Abnahme des vorherigen Renders.
 paid_scope:
-  profiles: [test]
+  # final = gen4.5 + gen4_image (Veröffentlichungsqualität). Erlaubt, weil unten
+  # elevenlabs.require_commercial_license: true gilt (bezahlter Tarif wird vor dem Lauf geprüft).
+  profiles: [final]
   scenes: [S01, S02, S03, S04, S05]
   audio_providers: [elevenlabs]
   # Nur diese Episode(n) dürfen bezahlt laufen – alle anderen brechen im Preflight ab.
@@ -73,7 +75,11 @@ elevenlabs:
   #   - Ergebnisse weiterhin nur verschlüsselt als Workflow-Artefakt, nie veröffentlicht
   # Für eine Veröffentlichung: Material mit bezahltem Tarif NEU generieren und
   # diesen Wert wieder auf true setzen.
-  require_commercial_license: false
+  # 15.11.2026: wieder true – ETAGE 0 wird für die kommerzielle Veröffentlichung produziert
+  # (ElevenLabs Starter). Der Preflight und die Prüfung direkt vor dem Render brechen ab, wenn das
+  # Konto (noch) im Free-Tarif ist. Damit entsteht KEIN als „privater Test“ markiertes Material mehr;
+  # alle Stimmen und Soundeffekte werden in diesem Lauf unter dem bezahlten Tarif neu erzeugt.
+  require_commercial_license: true
   # Musik wird erst generiert, wenn die Produktion die Eleven-Music-Bedingungen
   # (elevenlabs.io/music-terms) für diesen Verwendungszweck geprüft hat und das
   # hier per PR bestätigt. Bis dahin: Drone-Musikbett (Soundeffekt) als Ersatz.

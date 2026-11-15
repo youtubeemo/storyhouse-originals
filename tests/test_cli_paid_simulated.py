@@ -115,6 +115,7 @@ def test_full_paid_flow_via_cli_with_both_providers(assets, tmp_path, monkeypatc
     assert raw["elevenlabs"]["music_license_confirmed"] is False
     raw["paid_rendering_enabled"] = True
     raw["paid_scope"] = dict(REFLECTION_S01)
+    raw["elevenlabs"]["require_commercial_license"] = False
     raw["elevenlabs"]["music_license_confirmed"] = True
     budget = tmp_path / "budget.yaml"
     budget.write_text(yaml.safe_dump(raw, allow_unicode=True))
@@ -185,6 +186,7 @@ def test_cli_refuses_when_account_has_overage_enabled(assets, tmp_path, monkeypa
     raw = yaml.safe_load((ROOT / "config" / "budget.yaml").read_text())
     raw["paid_rendering_enabled"] = True
     raw["paid_scope"] = dict(REFLECTION_S01)
+    raw["elevenlabs"]["require_commercial_license"] = False
     budget = tmp_path / "budget.yaml"
     budget.write_text(yaml.safe_dump(raw, allow_unicode=True))
     rc = main(["preflight", "--budget-config", str(budget), "--scenes", "S01", "--ledger", str(tmp_path / "l.json")])
@@ -208,6 +210,7 @@ def _repo_budget_freigeschaltet(tmp_path):
     raw["paid_scope"] = dict(REFLECTION_S01)
     raw["paid_rendering_enabled"] = True
     raw["paid_scope"] = dict(REFLECTION_S01)
+    raw["elevenlabs"]["require_commercial_license"] = False
     path = tmp_path / "budget_repo_freigeschaltet.yaml"
     path.write_text(yaml.safe_dump(raw, allow_unicode=True))
     return ["--budget-config", str(path)]
