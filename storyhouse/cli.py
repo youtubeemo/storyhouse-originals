@@ -122,6 +122,12 @@ def main(argv: list[str] | None = None) -> int:
         p.add_argument("--run-id", default=os.environ.get("STORYHOUSE_RUN_ID", "local"))
         p.add_argument("--out", default="output/render")
 
+    p = sub.add_parser("kosten", help="Kosten für längere Filme hochrechnen (keine API)"); _common(p)
+    p.add_argument("--minuten", nargs="+", type=float, default=[1, 5, 10])
+    p.add_argument("--nachdrehquote", type=float, default=1.5)
+
+    p = sub.add_parser("tools", help="Werkzeug-Katalog (config/providers.yaml) anzeigen"); _common(p)
+
     p = sub.add_parser("close-run", help="Hängende Reservierung manuell abschließen (z. B. nach Runner-Absturz)")
     _common(p)
     p.add_argument("--ledger", default=".ledger/ledger.json")
@@ -145,6 +151,17 @@ def _dispatch(args: argparse.Namespace) -> int:
 
     if args.cmd == "validate":
         print(f"✅ {ep.slug}: {len(ep.scenes)} Szenen, {ep.duration:.1f} s, {len(ep.dialogue)} Dialogzeilen – gültig")
+        return 0
+
+    if args.cmd == "kosten":
+        from storyhouse.projection import table
+        _summary("### Kostenhochrechnung\n\n" + table(ep, pricing, cfg, args.minuten, args.nachdrehquote))
+        return 0
+
+    if args.cmd == "tools":
+        from storyhouse.providers import load as load_tools
+        for t in load_tools(REPO_ROOT / "config" / "providers.yaml"):
+            print(f"- {t['name']}: {t['status']} · {t['kosten']} · {t['naechster_schritt']}")
         return 0
 
     if args.cmd == "budget-status":

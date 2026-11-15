@@ -1,0 +1,234 @@
+# Werkzeug-Katalog – gleiches Format in storyhouse-originals, gta-shorts-germany und dschungel-freunde.
+# status: vorhanden | neu integriert | vorbereitet | ungeeignet
+# Kostenpflichtige Werkzeuge werden NIE ohne ausdrückliche Freigabe aufgerufen.
+# Preise geprüft am 2026-11-15 (Quellen im Feld quelle) – vor Nutzung erneut prüfen.
+werkzeuge:
+- name: Runway
+  kategorie: KI-Video/Bild
+  funktion: Bild-zu-Video (gen4.5, gen4_turbo, veo3.1), Keyframes (gen4_image) mit Referenz-Tags
+  kosten: 'Credits: gen4.5 12/s, gen4_turbo 5/s (1 Credit = 0,01 $)'
+  kostenpflichtig: true
+  lizenz: kommerziell laut Runway-Bedingungen
+  schluessel:
+  - RUNWAYML_API_SECRET
+  quelle: docs.dev.runwayml.com/guides/pricing
+  status: vorhanden
+  kosten_schaetzung: 'final ≈ 8 €/40 s Film; Hochrechnung: python -m storyhouse kosten'
+  naechster_schritt: 'Freigabe-Umfang per PR erweitern (scenes: all, dann final)'
+  freigabe_noetig: true
+  geprueft_am: '2026-11-15'
+- name: ElevenLabs
+  kategorie: Stimme/SFX/Musik
+  funktion: Text-to-Speech eleven_v3, Soundeffekte, Eleven Music
+  kosten: 'Free 10.000 Credits/Monat (nicht kommerziell); Starter 6 $/Monat; API: TTS 0,08 $/1k Zeichen, SFX 0,12 $/min, Musik
+    0,15 $/min'
+  kostenpflichtig: true
+  lizenz: 'Free: nicht kommerziell + Namensnennung; ab Starter kommerziell; Musik für Film/TV: Enterprise'
+  schluessel:
+  - ELEVENLABS_API_KEY
+  quelle: elevenlabs.io/pricing/api
+  status: vorhanden
+  kosten_schaetzung: 'Free-Tarif: S01 kostete 816 Credits; Starter 6 $/Monat für kommerzielle Nutzung'
+  naechster_schritt: 'Vor Veröffentlichung: Starter-Abo + neu generieren'
+  freigabe_noetig: true
+  geprueft_am: '2026-11-15'
+- name: FFmpeg
+  kategorie: Video/Audio
+  funktion: Schnitt, Mischung, Lautheit, Untertitel, Export
+  kosten: kostenlos
+  kostenpflichtig: false
+  lizenz: LGPL/GPL (Werkzeug), Ausgaben frei
+  schluessel: []
+  quelle: ffmpeg.org
+  status: vorhanden
+  kosten_schaetzung: 0 €
+  naechster_schritt: –
+  freigabe_noetig: false
+  geprueft_am: '2026-11-15'
+- name: Python
+  kategorie: Laufzeit
+  funktion: Pipeline-Code, Tests
+  kosten: kostenlos
+  kostenpflichtig: false
+  lizenz: PSF
+  schluessel: []
+  quelle: python.org
+  status: vorhanden
+  kosten_schaetzung: 0 €
+  naechster_schritt: –
+  freigabe_noetig: false
+  geprueft_am: '2026-11-15'
+- name: GitHub Actions
+  kategorie: Automatisierung
+  funktion: Rendern, Tests, Zeitpläne
+  kosten: 'öffentliche Repos frei; private: 2.000 Min/Monat (Free), danach 0,006 $/Min Linux'
+  kostenpflichtig: false
+  lizenz: '-'
+  schluessel: []
+  quelle: docs.github.com/billing (Actions)
+  status: vorhanden
+  kosten_schaetzung: 'öffentliches Repo: kostenlos'
+  naechster_schritt: –
+  freigabe_noetig: false
+  geprueft_am: '2026-11-15'
+- name: Rea Video
+  kategorie: Analyse
+  funktion: Video Einstellung für Einstellung zerlegen (Schnitt, Ton, Machart, Prompts) – rendert nichts
+  kosten: kostenlos (Apache-2.0); optional Gemini/Doubao-Schlüssel für bessere Analyse
+  kostenpflichtig: false
+  lizenz: Apache-2.0 (Gewichte teils CC BY-SA 4.0)
+  schluessel: []
+  quelle: github.com/JuneYaooo/rea-video
+  status: vorbereitet
+  kosten_schaetzung: 0 €
+  naechster_schritt: Referenz-Thriller-Shorts analysieren (Schnitt, Hook) – nur Struktur lernen, eigenes Material nutzen
+  freigabe_noetig: false
+  geprueft_am: '2026-11-15'
+- name: OpenMontage
+  kategorie: Agenten-Videoproduktion
+  funktion: Agentisches Gesamtsystem (Skript bis Schnitt) für Coding-Agenten
+  kosten: kostenlos; genutzte KI-Anbieter kosten extra
+  kostenpflichtig: false
+  lizenz: AGPL-3.0 (Code-Übernahme würde Repo AGPL-pflichtig machen)
+  schluessel: []
+  quelle: github.com/calesthio/OpenMontage
+  status: ungeeignet
+  kosten_schaetzung: –
+  naechster_schritt: AGPL – Übernahme würde das Repo AGPL-pflichtig machen; eigene Pipeline ist abgesichert
+  freigabe_noetig: false
+  geprueft_am: '2026-11-15'
+- name: Hailuo AI / MiniMax Video
+  kategorie: KI-Video
+  funktion: Bild-/Text-zu-Video (Hailuo 02/2.3, H3)
+  kosten: z. B. Hailuo-02 512p/6 s 0,10 $; 768p/6 s 0,28 $; 1080p/6 s 0,49 $; H3 768p 0,08 $/s
+  kostenpflichtig: true
+  lizenz: kommerziell laut MiniMax-Bedingungen (vor Nutzung prüfen)
+  schluessel:
+  - MINIMAX_API_KEY
+  quelle: platform.minimax.io/docs/guides/pricing-paygo
+  status: vorbereitet
+  kosten_schaetzung: '768p 6 s: 0,28 $ (≈ 4,7 ¢/s, günstiger als gen4.5 mit 12 ¢/s)'
+  naechster_schritt: A/B-Test einer Szene gegen gen4.5 – nur mit Freigabe und eigenem Budget
+  freigabe_noetig: true
+  geprueft_am: '2026-11-15'
+- name: MiniMax Speech
+  kategorie: Stimme
+  funktion: TTS speech-2.6-hd, Voice Design
+  kosten: 100 $/1 Mio. Zeichen (HD); Voice Design 3 $/Stimme
+  kostenpflichtig: true
+  lizenz: laut MiniMax-Bedingungen (vor Nutzung prüfen)
+  schluessel:
+  - MINIMAX_API_KEY
+  quelle: platform.minimax.io/docs/guides/pricing-paygo
+  status: ungeeignet
+  kosten_schaetzung: –
+  naechster_schritt: ElevenLabs ist bereits integriert
+  freigabe_noetig: true
+  geprueft_am: '2026-11-15'
+- name: Hedra
+  kategorie: Lippensynchronisation
+  funktion: 'Character-3: Bild + Ton -> sprechende Figur'
+  kosten: 'API Character-3: 2,5 ¢/s (540p) bis 6,25 ¢/s (1080p); Studio ab ca. 15–20 $/Monat'
+  kostenpflichtig: true
+  lizenz: 'Free: Wasserzeichen, nicht kommerziell; bezahlt: kommerziell'
+  schluessel:
+  - HEDRA_API_KEY
+  quelle: hedra.com/models/video/hedra/character-3
+  status: vorbereitet
+  kosten_schaetzung: 'Character-3: 720p 5 ¢/s → 20 s Dialogszenen ≈ 1 $'
+  naechster_schritt: Lippensync für Dialog-Nahaufnahmen (Phase 2), nur mit Freigabe
+  freigabe_noetig: true
+  geprueft_am: '2026-11-15'
+- name: Nano Banana (Gemini Image)
+  kategorie: KI-Bild
+  funktion: Bildgenerierung/-bearbeitung, konsistente Figuren über Referenzbilder
+  kosten: Gemini 2.5 Flash Image 0,039 $/Bild; Nano Banana 2 ab ca. 0,045–0,151 $; Pro 0,134–0,24 $
+  kostenpflichtig: true
+  lizenz: kommerziell; unsichtbares SynthID-Wasserzeichen
+  schluessel:
+  - GEMINI_API_KEY
+  quelle: ai.google.dev/gemini-api/docs/pricing
+  status: vorbereitet
+  kosten_schaetzung: ~0,04–0,13 $/Bild
+  naechster_schritt: Alternative für Keyframes mit Figurenkonsistenz – nur mit Freigabe
+  freigabe_noetig: true
+  geprueft_am: '2026-11-15'
+- name: Lovart
+  kategorie: Design-Agent
+  funktion: Plakate, Thumbnails, Markenbilder im Chat-Canvas
+  kosten: Abo, Kredit-basiert; Free ohne kommerzielle Lizenz
+  kostenpflichtig: true
+  lizenz: kommerziell erst in bezahlten Tarifen
+  schluessel: []
+  quelle: lovart.ai (keine offizielle, frei zugängliche API bestätigt)
+  status: ungeeignet
+  kosten_schaetzung: –
+  naechster_schritt: Keine offizielle API; manuell für Poster/Thumbnail
+  freigabe_noetig: true
+  geprueft_am: '2026-11-15'
+- name: Kilo Code
+  kategorie: Coding-Agent
+  funktion: KI-Programmierhilfe in VS Code/JetBrains/CLI (eigene Schlüssel)
+  kosten: Erweiterung kostenlos (MIT); Modelle nach Verbrauch
+  kostenpflichtig: false
+  lizenz: MIT (Clients)
+  schluessel: []
+  quelle: kilo.ai/open
+  status: ungeeignet
+  kosten_schaetzung: –
+  naechster_schritt: Optionales Entwicklerwerkzeug
+  freigabe_noetig: false
+  geprueft_am: '2026-11-15'
+- name: OpenCode
+  kategorie: Coding-Agent
+  funktion: Terminal-Coding-Agent, anbieterunabhängig
+  kosten: kostenlos (MIT); Modelle nach Verbrauch
+  kostenpflichtig: false
+  lizenz: MIT
+  schluessel: []
+  quelle: opencode.ai
+  status: ungeeignet
+  kosten_schaetzung: –
+  naechster_schritt: Optionales Entwicklerwerkzeug
+  freigabe_noetig: false
+  geprueft_am: '2026-11-15'
+- name: Consensus
+  kategorie: Recherche
+  funktion: Suche in wissenschaftlichen Studien
+  kosten: Free; Pro ca. 12 $/Monat; API/MCP ab Pro (0,05 $/Aufruf über Kontingent)
+  kostenpflichtig: true
+  lizenz: '-'
+  schluessel:
+  - CONSENSUS_API_KEY
+  quelle: consensus.app
+  status: ungeeignet
+  kosten_schaetzung: –
+  naechster_schritt: Für Thriller-Fiktion nicht relevant
+  freigabe_noetig: true
+  geprueft_am: '2026-11-15'
+- name: Obsidian
+  kategorie: Notizen/Wissensbasis
+  funktion: Markdown-Notizen (Drehbücher, Figurenbibel) – Repo-Ordner als Vault nutzbar
+  kosten: App kostenlos (auch kommerziell); Sync 4 $/Monat optional
+  kostenpflichtig: false
+  lizenz: kostenlos für alle Zwecke
+  schluessel: []
+  quelle: obsidian.md/pricing
+  status: vorbereitet
+  kosten_schaetzung: 0 €
+  naechster_schritt: 'Repo-Ordner episodes/ als Vault: Drehbuch, Storyboard, Figurenbibel verlinken'
+  freigabe_noetig: false
+  geprueft_am: '2026-11-15'
+- name: faster-whisper
+  kategorie: Spracherkennung
+  funktion: Wort-Zeitstempel für exakte Untertitel
+  kosten: kostenlos (lokal)
+  kostenpflichtig: false
+  lizenz: MIT
+  schluessel: []
+  quelle: github.com/SYSTRAN/faster-whisper
+  status: vorbereitet
+  kosten_schaetzung: 0 €
+  naechster_schritt: Wortgenaue Untertitel aus der fertigen Tonspur (statt Schätzung)
+  freigabe_noetig: false
+  geprueft_am: '2026-11-15'
