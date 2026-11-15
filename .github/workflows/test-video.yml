@@ -170,14 +170,40 @@ jobs:
         run: bash scripts/ledger.sh pull
       - name: Budgetstand
         run: python -m storyhouse budget-status --ledger .ledger/ledger.json
+      # Zwischenspeicher früherer Läufe (verschlüsselt): Was schon bezahlt und unverändert ist, wird weder
+      # reserviert noch neu erzeugt. Lauf 43758293707 brach bei KF_S20 ab und hatte nichts gesichert –
+      # 3,58 € an Bildern und Ton waren verloren. Seitdem wird der Stand nach JEDEM Lauf gesichert.
+      - name: Zwischenspeicher holen
+        uses: actions/cache/restore@v4
+        with:
+          path: output/szenen-cache.tar.enc
+          key: szenen-cache-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: szenen-cache-
+      - name: Zwischenspeicher entschlüsseln
+        run: |
+          bash scripts/szenen_cache.sh unpack output/szenen-cache.tar.enc output/szenen-cache
+          rm -f output/szenen-cache.tar.enc
       - name: Preflight (Freigabe, Preise, Budget, Guthaben)
-        run: python -m storyhouse preflight --episode "$EPISODE" --profile "$PROFILE" --scenes "$SCENES" $STILLS --ledger .ledger/ledger.json
+        run: python -m storyhouse preflight --episode "$EPISODE" --profile "$PROFILE" --scenes "$SCENES" $STILLS --ledger .ledger/ledger.json --cache output/szenen-cache
       - name: Budget reservieren und sichern (vor jeder Ausgabe)
         run: |
-          python -m storyhouse reserve --episode "$EPISODE" --profile "$PROFILE" --scenes "$SCENES" $STILLS --ledger .ledger/ledger.json --run-id "$STORYHOUSE_RUN_ID"
+          python -m storyhouse reserve --episode "$EPISODE" --profile "$PROFILE" --scenes "$SCENES" $STILLS --ledger .ledger/ledger.json --run-id "$STORYHOUSE_RUN_ID" --cache output/szenen-cache
           bash scripts/ledger.sh push "reserve $STORYHOUSE_RUN_ID"
       - name: Rendern (kostenpflichtig)
-        run: python -m storyhouse render --episode "$EPISODE" --profile "$PROFILE" --scenes "$SCENES" $STILLS --ledger .ledger/ledger.json --run-id "$STORYHOUSE_RUN_ID" --out output/render
+        run: python -m storyhouse render --episode "$EPISODE" --profile "$PROFILE" --scenes "$SCENES" $STILLS --ledger .ledger/ledger.json --run-id "$STORYHOUSE_RUN_ID" --out output/render --cache output/szenen-cache
+      # Direkt nach dem Render und AUCH bei Abbruch: alles bisher Bezahlte verschlüsselt sichern.
+      - name: Zwischenspeicher verschlüsseln
+        if: ${{ always() }}
+        run: |
+          if [ -d output/szenen-cache ]; then
+            bash scripts/szenen_cache.sh pack output/szenen-cache output/szenen-cache.tar.enc
+          fi
+      - name: Zwischenspeicher sichern
+        if: ${{ always() && hashFiles('output/szenen-cache.tar.enc') != '' }}
+        uses: actions/cache/save@v4
+        with:
+          path: output/szenen-cache.tar.enc
+          key: szenen-cache-${{ github.run_id }}-${{ github.run_attempt }}
       # Prüft das bezahlte Ergebnis, blockiert aber nichts: das Geld ist ausgegeben, das Ergebnis wird
       # in jedem Fall verschlüsselt gesichert. Bericht nur auf der Laufseite, keine Videodaten.
       - name: Qualitätsprüfung (Länge, 9:16, Ton, Lautheit, Untertitel)

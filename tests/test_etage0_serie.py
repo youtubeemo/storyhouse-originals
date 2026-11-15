@@ -259,3 +259,75 @@ def test_abgenommene_referenzen_und_standbild_stufe_im_simulierten_lauf(ep, tmp_
     assert all(r["uri"].startswith("data:image/jpeg;base64,") for r in sent)   # Leon kommt aus der Datei
     assert m["video"].endswith("_final_standbild.mp4")
     assert m["probe"]["duration"] == pytest.approx(11.0 + 8.0, abs=0.2)        # S15 4 s + S16 7 s + Karte 8 s
+
+
+# ----------------------------------------------------------------- Abbruch bei KF_S20 (Lauf 43758293707)
+def test_kein_bildauftrag_sendet_eine_leere_referenzliste(ep):
+    """Runway: HTTP 400 „At least one reference image is required“ bei referenceImages: []."""
+    from storyhouse.runway_spec import SpecError, validate_payload
+
+    plan = build_plan(ep, Pricing.load(), profile="final", stills_only=True)
+    images = [j for j in plan.jobs if j.kind == "image"]
+    assert all(j.payload.get("referenceImages", True) for j in images)       # fehlt oder hat Einträge
+    assert "referenceImages" not in next(j for j in images if j.id == "KF_S20").payload
+    only = build_plan(ep, Pricing.load(), profile="final", scenes="S23")      # Anschluss an S20 entfällt
+    assert all(j.payload.get("referenceImages", True) for j in only.jobs if j.kind == "image")
+    with pytest.raises(SpecError, match="leer"):
+        validate_payload("image", {**images[-1].payload, "referenceImages": []})
+
+
+def test_zwischenspeicher_wird_verschluesselt_gesichert_und_senkt_die_reservierung(ep, tmp_path, monkeypatch, capsys):
+    import os
+
+    from storyhouse.szenen_cache import SzenenCache, job_keys
+
+    wf = (ROOT / ".github" / "workflows" / "test-video.yml").read_text(encoding="utf-8")
+    assert wf.count("--cache output/szenen-cache") == 3                       # preflight, reserve, render
+    assert wf.index("Rendern (kostenpflichtig)") < wf.index("Zwischenspeicher verschlüsseln") < wf.index("Kosten verbuchen")
+    save = wf[wf.index("- name: Zwischenspeicher sichern"):]
+    assert "always()" in save.split("uses:")[0] and "szenen-cache.tar.enc" in save
+
+    plan = build_plan(ep, Pricing.load(), profile="final", stills_only=True)
+    cache, keys = SzenenCache(tmp_path / "cache"), job_keys(plan.jobs)
+    f = tmp_path / "bezahlt.png"
+    f.write_bytes(b"bezahltes-bild" * 50)
+    cache.put(keys["REF_leon"], f)
+    env = {**os.environ, "ARTIFACT_PASSPHRASE": "correct horse battery staple"}
+    sh, enc = str(ROOT / "scripts" / "szenen_cache.sh"), tmp_path / "c.tar.enc"
+    subprocess.run(["bash", sh, "pack", str(tmp_path / "cache"), str(enc)], env=env, check=True)
+    assert b"bezahltes-bild" not in enc.read_bytes()
+    subprocess.run(["bash", sh, "unpack", str(enc), str(tmp_path / "neu")], env=env, check=True)
+    hit, rest = SzenenCache(tmp_path / "neu").coverage(plan.jobs)
+    assert hit == ["REF_leon"] and len(rest) == len(plan.jobs) - 1
+
+    # Reservierung über die CLI: Alle Bilder liegen schon im Zwischenspeicher -> nur noch der Ton wird reserviert.
+    import json
+
+    import yaml
+
+    from storyhouse.cli import main
+
+    for j in plan.jobs:
+        if j.kind == "image":
+            cache.put(keys[j.id], f)
+    raw = yaml.safe_load((ROOT / "config" / "budget.yaml").read_text(encoding="utf-8"))
+    raw["paid_rendering_enabled"] = True
+    raw["paid_scope"].update(episodes=[ep.slug], scenes=["all"], profiles=["final"], budget_eur=10.0)
+    budget = tmp_path / "budget.yaml"
+    budget.write_text(yaml.safe_dump(raw, allow_unicode=True), encoding="utf-8")
+    for k, v in {"RUNWAYML_API_SECRET": "key_" + "x" * 40, "ELEVENLABS_API_KEY": "sk_" + "x" * 40,
+                 "ARTIFACT_PASSPHRASE": "correct horse battery staple",
+                 "STORYHOUSE_APPROVAL": "ICH GEBE DIESEN RENDER FREI"}.items():
+        monkeypatch.setenv(k, v)
+    monkeypatch.delenv("GITHUB_STEP_SUMMARY", raising=False)
+    ledger = tmp_path / "ledger.json"
+    ledger.write_text(json.dumps({"version": 1, "entries": [
+        {"run_id": "run-43758293707-1", "episode": ep.slug, "status": "finalized", "reserved_eur": 9.85,
+         "spent_eur": 3.5755}]}), encoding="utf-8")
+    args = ["--budget-config", str(budget), "--episode", str(EP), "--profile", "final", "--scenes", "all",
+            "--stills-only", "--ledger", str(ledger), "--run-id", "sim-2"]
+    assert main(["reserve", *args]) != 0                                      # ohne Cache: 3,58 + 9,85 > 10 €
+    assert "13.43 €. Kein bezahlter Lauf" in capsys.readouterr().out
+    assert main(["reserve", *args, "--cache", str(tmp_path / "cache")]) == 0
+    entry = json.loads(ledger.read_text(encoding="utf-8"))["entries"][-1]
+    assert entry["run_id"] == "sim-2" and 4.0 < entry["reserved_eur"] < 5.0   # nur Ton: 3,50 € + 25 %

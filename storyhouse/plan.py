@@ -177,7 +177,9 @@ def build_plan(ep: Episode, pricing: Pricing, profile: str = "test", scenes: str
                 "model": model,
                 "promptText": _clean(f"{prompt} {style}")[:1000],
                 "ratio": IMAGE_RATIO_9x16,
-                "referenceImages": refs,
+                # Ohne Referenz (reine Detail-Einstellung, z. B. die Anzeige in S20) darf das Feld gar nicht
+                # gesendet werden: Runway lehnt eine LEERE Liste mit HTTP 400 ab (Lauf 43758293707).
+                **({"referenceImages": refs} if refs else {}),
                 "seed": _seed(f"kf-{s['id']}"),
             },
         ))
