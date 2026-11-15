@@ -177,6 +177,17 @@ Die Sperre entsteht durch den neuen Schritt **„Freigabe nachweisen“**: Er fr
 
 **Ohne Umstellung:** Verschlüsseltes Artefakt an einem Computer mit `openssl` entschlüsseln (Abschnitt 6) und das MP4 per AirDrop/iCloud aufs iPhone schicken.
 
+### 6.2 Film auf dem iPhone ansehen (ohne Terminal, GitHub Free)
+
+Die Seite **https://youtubeemo.github.io/storyhouse-originals/** entschlüsselt das verschlüsselte Artefakt **direkt im Safari des iPhones**. Die Seite hat keinerlei Netzwerkzugriff (Content-Security-Policy), Passphrase und Film verlassen das Gerät nicht. Veröffentlicht wird nur die Seite selbst (Ordner `player/`), nie ein Video.
+
+Einmalig: **Settings → Pages → Source: GitHub Actions**, danach **Actions → iPhone-Player veröffentlichen → Run workflow**.
+
+1. In Safari (bei GitHub angemeldet) den Lauf öffnen → unter **Artifacts** `render-<RUN_ID>-encrypted` tippen → wird als ZIP in „Dateien“ geladen.
+2. In „Dateien“ → Downloads → ZIP antippen (entpackt sich).
+3. Player-Seite öffnen → Datei `…_PRIVAT.mp4.enc` wählen → Passphrase eingeben (oder aus dem iCloud-Schlüsselbund) → **Entschlüsseln & abspielen**.
+4. **In Fotos / Dateien sichern** oder **Herunterladen**.
+
 ## 7. Budget im Blick
 
 ```bash
