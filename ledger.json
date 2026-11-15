@@ -18,6 +18,25 @@
       "elevenlabs_eur": 0.1942,
       "finalized_utc": "2026-11-14T21:51:53Z",
       "balance_delta_credits": 38.0
+    },
+    {
+      "run_id": "run-43724968662-1",
+      "status": "reserved",
+      "created_utc": "2026-11-15T14:38:24Z",
+      "estimate_eur": 5.79,
+      "reserved_eur": 7.24,
+      "spent_eur": 0.0,
+      "spent_credits": 0.0,
+      "profile": "final",
+      "scenes": [
+        "S01",
+        "S02",
+        "S03",
+        "S04",
+        "S05"
+      ],
+      "jobs": 30,
+      "episode": "etage-0-der-verbotene-knopf"
     }
   ]
 }
