@@ -28,6 +28,10 @@ jobs:
         run: pytest -q
       - name: Episode validieren
         run: python -m storyhouse validate
+      - name: Episode ETAGE 0 prüfen und schätzen (0 €)
+        run: |
+          python -m storyhouse validate --episode episodes/etage-0/ep01-der-verbotene-knopf
+          python -m storyhouse estimate --episode episodes/etage-0/ep01-der-verbotene-knopf --profile test
       - name: Dry-Run (Vorschau, 0 €, kein Secret, kein API-Aufruf)
         run: python -m storyhouse dry-run --preview --out output/ci-dry-run
       - name: Kostenschätzung (Test & Final)

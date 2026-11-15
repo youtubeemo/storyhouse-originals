@@ -66,6 +66,8 @@ class BudgetConfig:
     scope_profiles: tuple[str, ...] | None = None
     scope_scenes: tuple[str, ...] | None = None
     scope_audio_providers: tuple[str, ...] | None = None
+    scope_episodes: tuple[str, ...] | None = None      # nur diese Episoden (slug) dürfen bezahlt laufen
+    scope_budget_eur: float | None = None              # Obergrenze für ALLE Läufe der freigegebenen Episoden zusammen
 
     @classmethod
     def load(cls, path: str | Path = DEFAULT_BUDGET) -> "BudgetConfig":
@@ -101,6 +103,8 @@ class BudgetConfig:
             scope_profiles=_scope("profiles"),
             scope_scenes=_scope("scenes"),
             scope_audio_providers=_scope("audio_providers"),
+            scope_episodes=_scope("episodes"),
+            scope_budget_eur=(float(scope["budget_eur"]) if scope and scope.get("budget_eur") is not None else None),
         )
         cfg.validate()
         return cfg
@@ -130,6 +134,11 @@ class BudgetConfig:
                     "elevenlabs.require_commercial_license: false ist nur mit ausdrücklich aufgezählten Szenen "
                     "in paid_scope.scenes erlaubt"
                 )
+        if self.scope_budget_eur is not None:
+            if not 0 < self.scope_budget_eur <= self.max_per_run_eur:
+                raise BudgetError("paid_scope.budget_eur muss > 0 und <= max_per_run_eur sein")
+            if not self.scope_episodes:
+                raise BudgetError("paid_scope.budget_eur braucht paid_scope.episodes")
         if len(self.approval_phrase.strip()) < 10:
             raise BudgetError("approval_phrase zu kurz")
 
@@ -489,6 +498,24 @@ class SpendGuard:
 # ---------------------------------------------------------------------
 # Freigabe für bezahlte Läufe
 # ---------------------------------------------------------------------
+def require_scope_budget(cfg: BudgetConfig, ledger: "Ledger", estimate_eur: float) -> None:
+    """paid_scope.budget_eur: Obergrenze für alle Läufe der freigegebenen Episoden zusammen
+    (bereits Verbuchtes + offene Reservierungen + dieser Lauf inkl. Puffer)."""
+    if cfg.scope_budget_eur is None:
+        return
+    bisher = 0.0
+    for e in ledger.entries:
+        if e.get("episode") in (cfg.scope_episodes or ()):
+            bisher += float(e["spent_eur"]) if e["status"] == "finalized" else max(
+                float(e["reserved_eur"]), float(e.get("spent_eur", 0.0)))
+    needed = with_margin(estimate_eur, cfg)
+    if bisher + needed > cfg.scope_budget_eur + 1e-9:
+        raise BudgetError(
+            f"Freigegebenes Budget für diese Produktion: {cfg.scope_budget_eur:.2f} €. Bereits gebunden "
+            f"{bisher:.2f} € + dieser Lauf {needed:.2f} € (inkl. Puffer) = {bisher + needed:.2f} €. Kein bezahlter Lauf."
+        )
+
+
 def require_paid_scope(cfg: BudgetConfig, plan) -> None:
     """Bezahlte Läufe nur im freigegebenen Umfang (config/budget.yaml: paid_scope)."""
     problems: list[str] = []
@@ -501,6 +528,8 @@ def require_paid_scope(cfg: BudgetConfig, plan) -> None:
     if (cfg.scope_audio_providers is not None and plan.audio_provider is not None
             and plan.audio_provider not in cfg.scope_audio_providers):
         problems.append(f"Tonquelle '{plan.audio_provider}' (freigegeben: {', '.join(cfg.scope_audio_providers)})")
+    if cfg.scope_episodes is not None and plan.episode_slug not in cfg.scope_episodes:
+        problems.append(f"Episode '{plan.episode_slug}' (freigegeben: {', '.join(cfg.scope_episodes)})")
     if problems:
         raise ApprovalError(
             "Außerhalb des freigegebenen Umfangs (config/budget.yaml: paid_scope): " + "; ".join(problems)

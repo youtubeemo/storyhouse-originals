@@ -22,6 +22,9 @@ EL_KEY = "sk_" + "cd34" * 12
 PASSPHRASE = "correct horse battery staple"
 
 
+REFLECTION_S01 = {"profiles": ["test"], "scenes": ["S01"], "audio_providers": ["elevenlabs"]}
+
+
 class FakeResponse(io.BytesIO):
     def __init__(self, body: bytes, headers: dict | None = None):
         super().__init__(body)
@@ -111,6 +114,7 @@ def test_full_paid_flow_via_cli_with_both_providers(assets, tmp_path, monkeypatc
     raw = yaml.safe_load((ROOT / "config" / "budget.yaml").read_text())
     assert raw["elevenlabs"]["music_license_confirmed"] is False
     raw["paid_rendering_enabled"] = True
+    raw["paid_scope"] = dict(REFLECTION_S01)
     raw["elevenlabs"]["music_license_confirmed"] = True
     budget = tmp_path / "budget.yaml"
     budget.write_text(yaml.safe_dump(raw, allow_unicode=True))
@@ -180,6 +184,7 @@ def test_cli_refuses_when_account_has_overage_enabled(assets, tmp_path, monkeypa
     monkeypatch.setenv("STORYHOUSE_APPROVAL", "ICH GEBE DIESEN RENDER FREI")
     raw = yaml.safe_load((ROOT / "config" / "budget.yaml").read_text())
     raw["paid_rendering_enabled"] = True
+    raw["paid_scope"] = dict(REFLECTION_S01)
     budget = tmp_path / "budget.yaml"
     budget.write_text(yaml.safe_dump(raw, allow_unicode=True))
     rc = main(["preflight", "--budget-config", str(budget), "--scenes", "S01", "--ledger", str(tmp_path / "l.json")])
@@ -197,11 +202,12 @@ def _paid_env(monkeypatch):
 
 
 def _repo_budget_freigeschaltet(tmp_path):
-    """Echte config/budget.yaml des Repos – nur der Hauptschalter an (Umfang test/S01 unverändert).
-    Im Repo steht der Schalter seit 15.11.2026 wieder auf false (Freigabe nur per PR)."""
+    """config/budget.yaml des Repos mit dem früheren Umfang „The Reflection, test, S01“.
+    (Im Repo ist seit 15.11.2026 nur ETAGE 0 freigegeben; diese Tests simulieren weiter den S01-Ablauf.)"""
     raw = yaml.safe_load((ROOT / "config" / "budget.yaml").read_text())
-    assert raw["paid_scope"] == {"profiles": ["test"], "scenes": ["S01"], "audio_providers": ["elevenlabs"]}
+    raw["paid_scope"] = dict(REFLECTION_S01)
     raw["paid_rendering_enabled"] = True
+    raw["paid_scope"] = dict(REFLECTION_S01)
     path = tmp_path / "budget_repo_freigeschaltet.yaml"
     path.write_text(yaml.safe_dump(raw, allow_unicode=True))
     return ["--budget-config", str(path)]

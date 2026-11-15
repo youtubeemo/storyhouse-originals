@@ -1,0 +1,311 @@
+# =====================================================================
+#  STORYHOUSE ORIGINALS
+#  ETAGE 0 – Der verbotene Knopf (Testvideo, 30 s inkl. Titelkarte)
+#  Film 28,6 s + Titelkarte „ETAGE 0“ 1,4 s = 30,0 s · 9:16 · 1080×1920 · Deutsch
+# =====================================================================
+
+series: ETAGE 0
+episode: 1
+title: DER VERBOTENE KNOPF
+slug: etage-0-der-verbotene-knopf
+genre: mystery thriller
+logline: >
+  Nachts erscheint in einem alten Aufzug eine Taste, die es nicht geben dürfte.
+  Leon drückt sie – und trifft jemanden, der schon auf ihn wartet.
+
+format:
+  duration_s: 28.6
+  width: 1080
+  height: 1920
+  fps: 24
+  aspect: "9:16"
+  generation_ratio: "720:1280"
+  loudness_lufs: -14.0
+  true_peak_db: -1.0
+  # Der Film beginnt mit Bild und Ton, die erste Dialogzeile kommt bei 5,6 s (Drehbuch).
+  hook_dialogue: false
+
+audio:
+  provider: elevenlabs
+
+# Modellwahl für dieses Testvideo (Profil bleibt „test“ = privater, nicht kommerzieller Test):
+# gen4.5 für flüssige Bewegung, gen4_image für saubere, konsistente Keyframes.
+models:
+  keyframe_model: gen4_image
+  video_model: gen4.5
+
+look:
+  global_style: >
+    High-end rotoscoped animation, adult graphic novel look, confident ink
+    outlines over painted flat color fields, subtle halftone shading,
+    cinematic low-key lighting with strong rim light, limited palette of deep
+    teal shadows, warm amber practical light and saturated signal red, fine
+    paper grain, consistent character design, vertical 9:16 composition,
+    no text, no captions, no watermark.
+  grade: "teal shadows, amber practicals, signal red accent"
+
+characters:
+  leon:
+    name: LEON
+    ref_tag: leon
+    description: >
+      Man, 30, short dark brown hair, light stubble, straight nose, grey-green
+      eyes, small mole under his right eye, dark green bomber jacket over a
+      grey hoodie, black backpack strap on one shoulder.
+    reference_prompt: >
+      Character sheet portrait of a 30-year-old man, short dark brown hair,
+      light stubble, straight nose, grey-green eyes, small mole under his right
+      eye, dark green bomber jacket over a grey hoodie, neutral expression,
+      front view, chest up, plain dark teal background, even soft light.
+  leon_alt:
+    name: DER ÄLTERE MANN
+    ref_tag: leon_alt
+    description: >
+      The same man about thirty years older: same straight nose, same
+      grey-green eyes, same small mole under the right eye, grey hair and grey
+      stubble, deep lines, the same dark green bomber jacket – worn and faded.
+    reference_prompt: >
+      Character sheet portrait of a 60-year-old man who is clearly the older
+      version of a dark-haired man: short grey hair, grey stubble, straight
+      nose, grey-green eyes, small mole under his right eye, deep lines, worn
+      faded dark green bomber jacket over a grey hoodie, calm tired expression,
+      front view, chest up, plain dark teal background, even soft light.
+    voice:
+      model: eleven_v3
+      # ElevenLabs-Standardstimme „George“ (reif, warm). Der Preflight prüft kostenlos,
+      # ob die Stimme im Konto verfügbar ist. Zum Umbesetzen nur die ID ändern.
+      voice_id: JBFqnCBsd6RMkjVDRZzb
+      voice_name: George
+      stability: 0.5
+      preset_id: Leslie
+      direction: "ruhig, müde, fast freundlich – Deutsch"
+      fx: flur_stimme
+  stimme:
+    name: DIE STIMME
+    ref_tag: leon
+    description: "Körperlose Flüsterstimme im Aufzug."
+    voice:
+      model: eleven_v3
+      # ElevenLabs-Standardstimme „Callum“ (rau, eindringlich).
+      voice_id: N2lVS1w4EtoT3dr4eOWO
+      voice_name: Callum
+      stability: 0.5
+      preset_id: Leslie
+      direction: "eindringliches Flüstern, ganz nah – Deutsch"
+      fx: fluester_stimme
+
+locations:
+  aufzug:
+    ref_tag: aufzug
+    reference_prompt: >
+      Interior of a cramped old 1970s apartment-building elevator at night,
+      brushed steel walls with scratches, wood-grain side panel, a vertical
+      panel of round worn floor buttons, a flickering ceiling light behind a
+      yellowed plastic cover, closed sliding steel doors, empty, no people.
+  flur:
+    ref_tag: flur
+    reference_prompt: >
+      Endless dark corridor seen from inside an elevator doorway, perfectly
+      symmetrical one-point perspective, concrete walls, identical closed
+      doors on both sides repeating into darkness, a row of weak red emergency
+      lights on the ceiling fading into the distance, thin floor mist, empty.
+
+# ---------------------------------------------------------------------
+# SZENEN (28,6 s) – danach Titelkarte 1,4 s
+# ---------------------------------------------------------------------
+scenes:
+  - id: S01
+    name: DIE TASTE
+    start: 0.0
+    duration: 5.0
+    render_duration: 5
+    beat: hook
+    shot: "Halbnah Leon im Aufzug, dann Blick zum Tastenfeld"
+    camera: "langsame Fahrt von Leon zum Tastenfeld"
+    action: >
+      Leon steht nachts allein im alten Aufzug. Das Licht flackert. Unter der
+      untersten Taste glimmt eine neue Taste rot auf: 0.
+    keyframe_prompt: >
+      Medium shot of @leon standing alone inside @aufzug at night, tired,
+      looking at the button panel beside him where one extra round button at
+      the very bottom glows bright red, red glow on his face, flickering
+      amber ceiling light.
+    motion_prompt: >
+      The ceiling light flickers irregularly. The man turns his head toward the
+      button panel as the lowest button fades up to a bright red glow. Slow
+      camera push from his face toward the glowing button. Fluid hand-drawn
+      rotoscope motion, stable character design.
+    sfx: [aufzug_summen, licht_flackern, taste_glimmen]
+    music: "tiefer Drone, einzelner hoher Ton beim Aufglimmen"
+
+  - id: S02
+    name: DIE WARNUNG
+    start: 5.0
+    duration: 7.0
+    render_duration: 7
+    beat: setup
+    shot: "Nah Leon, rotes Licht von unten"
+    camera: "kaum merkliche Handkamera, langsamer Zoom"
+    action: >
+      Eine Stimme flüstert direkt an seinem Ohr. Leon fährt herum – niemand da.
+    keyframe_prompt: >
+      Close-up of @leon inside @aufzug, lit from below by red light, eyes wide,
+      head half turned as if someone whispered right behind him, his breath
+      visible, nobody else in the elevator, deep teal shadows.
+    motion_prompt: >
+      The man freezes, then jerks his head around to look behind him, startled,
+      breathing fast; nobody is there. He slowly looks back at the red glow.
+      Subtle handheld sway, slow zoom in. Fluid hand-drawn rotoscope motion,
+      stable face.
+    sfx: [atem_erschrocken, herzschlag]
+    music: "Drone dünnt aus, Puls setzt ein"
+
+  - id: S03
+    name: DER DRUCK
+    start: 12.0
+    duration: 8.0
+    render_duration: 8
+    beat: escalation
+    shot: "Groß Finger auf Taste, dann Untersicht Leon im roten Licht"
+    camera: "Push-in auf die Taste, dann kippende Kreisfahrt nach oben"
+    action: >
+      Leon drückt die Taste. Der Aufzug ruckt, vibriert, fährt abwärts. Alles
+      Licht wird rot.
+    keyframe_prompt: >
+      Extreme close-up of the finger of @leon pressing a glowing red round
+      elevator button marked with a zero inside @aufzug, his tense face out of
+      focus behind, the whole elevator starting to flood with red light,
+      dramatic low angle.
+    motion_prompt: >
+      The finger presses the red button. The elevator jolts and shakes, the
+      light turns fully red, dust falls from the ceiling. The camera tilts up
+      and arcs around the man as he grabs the handrail and the elevator drops.
+      Dramatic, fluid hand-drawn rotoscope motion.
+    sfx: [taste_klick, aufzug_ruck, abfahrt_grollen]
+    music: "Puls beschleunigt, tiefer Anstieg"
+
+  - id: S04
+    name: DER FLUR
+    start: 20.0
+    duration: 6.5
+    render_duration: 7
+    beat: reveal
+    shot: "Über-Schulter Leon, Türen öffnen sich auf den Flur"
+    camera: "langsame Fahrt vorwärts durch die Türöffnung"
+    action: >
+      Stillstand. Die Türen öffnen sich. Ein endloser dunkler Flur. Ganz am
+      Ende steht ein Mann.
+    keyframe_prompt: >
+      Over-the-shoulder shot from behind @leon inside an old steel elevator
+      whose doors stand open onto @flur, far away at the end of the corridor the
+      small silhouette of @leon_alt standing still under a red emergency
+      light, floor mist, strong one-point perspective.
+    motion_prompt: >
+      The elevator doors slide fully open. Mist drifts in. The camera glides
+      slowly forward past the man's shoulder into the endless corridor toward
+      the distant motionless figure; the red emergency lights flicker one after
+      another. Fluid hand-drawn rotoscope motion.
+    sfx: [ankunft_gong, tueren_auf, flur_wind]
+    music: "Stille, dann ein einzelner tiefer Ton"
+
+  - id: S05
+    name: SCHON WIEDER
+    start: 26.5
+    duration: 2.1
+    render_duration: 3
+    beat: twist
+    shot: "Nah der ältere Mann, frontal"
+    camera: "statisch, minimaler Push-in"
+    action: >
+      Der ältere Mann – Leons Gesicht, dreißig Jahre später – sieht ihn ruhig
+      an und spricht. Schnitt auf Schwarz.
+    keyframe_prompt: >
+      Close-up of @leon_alt standing in @flur, facing the camera, calm tired
+      eyes, red emergency light from above, teal shadows, the same small mole
+      under his right eye clearly visible, mist behind him.
+    motion_prompt: >
+      The older man looks straight into the camera, barely moves, and speaks
+      one short calm sentence. Very slow push-in. Fluid hand-drawn rotoscope
+      motion, stable face.
+    sfx: [schnitt_schlag]
+    music: "harter Schlag auf den Schnitt"
+
+# ---------------------------------------------------------------------
+# DIALOG (Deutsch)
+# ---------------------------------------------------------------------
+dialogue:
+  - id: D01
+    scene: S02
+    character: stimme
+    at: 5.6
+    text: "Drück sie nicht, Leon."
+    tts_text: "[whispers] Drück sie nicht, Leon."
+  - id: D02
+    scene: S05
+    character: leon_alt
+    at: 26.6
+    text: "Du bist schon wieder hier."
+    tts_text: "[calm, tired] Du bist schon wieder hier."
+
+# ---------------------------------------------------------------------
+# SOUNDDESIGN – ElevenLabs Sound Effects. Musik: Drone-/Puls-Bett aus Soundeffekten
+# (Eleven Music bleibt gesperrt, bis die Musiklizenz bestätigt ist).
+# ---------------------------------------------------------------------
+sound_design:
+  voice_fx:
+    fluester_stimme: "highpass=f=200,aecho=0.6:0.5:40|80:0.3|0.2,volume=1.5"
+    flur_stimme: "highpass=f=100,aecho=0.5:0.4:60:0.25,volume=1.3"
+  music:
+    file: assets/music/etage0_score.wav
+    bed_gain_db: -16
+    duck_under_dialogue: true
+    generate:
+      enabled: false
+  drones:
+    - id: drone_main
+      prompt: "Dark cinematic thriller underscore, deep evolving sub-bass drone with a slow pulsing low synth and rising tension, no melody, seamless"
+      duration: 22
+      loop: true
+      at: 0.0
+      gain_db: -15
+      repeat_to_fill: true
+  sfx:
+    - {id: aufzug_summen,    at: 0.0,  duration: 12,  gain_db: -24, loop: true,  prompt: "Old elevator cabin interior room tone, electrical hum and faint cable creaks"}
+    - {id: licht_flackern,   at: 0.6,  duration: 3,   gain_db: -18, loop: false, prompt: "Fluorescent light flickering with electrical buzzes and ticks"}
+    - {id: taste_glimmen,    at: 2.8,  duration: 2,   gain_db: -14, loop: false, prompt: "Eerie rising high-pitched tone with a soft electric shimmer, something lighting up"}
+    - {id: atem_erschrocken, at: 7.4,  duration: 2,   gain_db: -18, loop: false, prompt: "Man startled sharp gasp followed by fast frightened breathing, close microphone"}
+    - {id: herzschlag,       at: 8.5,  duration: 4,   gain_db: -18, loop: false, prompt: "Deep muffled heartbeat getting faster, cinematic tension"}
+    - {id: taste_klick,      at: 13.2, duration: 1,   gain_db: -10, loop: false, prompt: "Heavy mechanical elevator button pressed with a solid clunk"}
+    - {id: aufzug_ruck,      at: 13.8, duration: 3,   gain_db: -10, loop: false, prompt: "Elevator jolting violently, metal groaning and rattling, heavy shudder"}
+    - {id: abfahrt_grollen,  at: 15.5, duration: 5,   gain_db: -12, loop: false, prompt: "Elevator descending fast with a deep rumbling roar that rises, then brakes to a stop"}
+    - {id: ankunft_gong,     at: 20.2, duration: 2,   gain_db: -14, loop: false, prompt: "Single old elevator arrival bell ding, slightly detuned, reverberant"}
+    - {id: tueren_auf,       at: 20.8, duration: 3,   gain_db: -14, loop: false, prompt: "Old elevator steel doors sliding open slowly with a metallic scrape"}
+    - {id: flur_wind,        at: 22.5, duration: 4,   gain_db: -20, loop: false, prompt: "Cold hollow wind in a long empty concrete corridor, distant, eerie"}
+    - {id: schnitt_schlag,   at: 28.3, duration: 2,   gain_db: -8,  loop: false, prompt: "Hard cinematic sub-bass impact hit, abrupt cut to black, thriller trailer"}
+
+subtitles:
+  font: "Inter Display"
+  font_size: 64
+  primary_colour: "&H00FFFFFF"
+  outline_colour: "&H00000000"
+  outline: 4
+  shadow: 0
+  margin_v: 560
+  margin_lr: 140
+  min_display_s: 1.0
+  chars_per_second: 15
+
+# Titelkarte nach dem Schnitt auf Schwarz (FFmpeg, kostenlos)
+outro:
+  enabled: true
+  duration_s: 1.4
+  title: "ETAGE 0"
+  subtitle: "DER VERBOTENE KNOPF"
+  tagline: "STORYHOUSE ORIGINALS"
+  background: "0x000000"
+  text_colour: "0xe8201a"
+  fade_s: 0.15
+  sting:
+    prompt: "Deep dark cinematic boom with a long cold reverberant tail, thriller title reveal"
+    duration: 1.5
+    gain_db: -8
