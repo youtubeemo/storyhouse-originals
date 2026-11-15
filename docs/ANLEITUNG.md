@@ -159,6 +159,24 @@ openssl enc -d -aes-256-cbc -pbkdf2 -iter 600000 \
   -in tos-ep01-the-reflection_final.mp4.enc -out film.mp4 -pass pass:'DEINE_PASSPHRASE'
 ```
 
+### 6.1 Film direkt aufs iPhone (unverschlüsselt – nur bei privatem Repo)
+
+Ist das Repository **nachweislich privat** (GitHub-API, geprüft unmittelbar vor dem Upload), lädt der Render zusätzlich das Artefakt `film-<RUN_ID>-mp4` hoch: MP4, SRT und Lizenzhinweis, unverschlüsselt, 7 Tage. Auf dem iPhone: Lauf öffnen → Artefakt tippen → ZIP in „Dateien“ öffnen → MP4 abspielen. Ist das Repo öffentlich oder schlägt die Prüfung fehl, gibt es **nur** das verschlüsselte Artefakt (wie bisher).
+
+Für bereits gelaufene Renders (z. B. Lauf #3) gibt es den kostenlosen Workflow **„Film bereitstellen“** (Eingabe: Lauf-ID). Er entschlüsselt das vorhandene Artefakt und lädt das MP4 hoch – nur bei privatem Repo, ohne Runway/ElevenLabs.
+
+**Wichtig vor dem Umstellen auf privat – was GitHub je Tarif kann:**
+
+| Tarif | Environment-Secrets im privaten Repo | Required Reviewers im privaten Repo | Folge für StoryHouse |
+|---|---|---|---|
+| Free | ✗ | ✗ | Bezahlter Render **gesperrt** (keine Schlüssel, keine Freigabe); „Film bereitstellen“ geht nicht (keine Passphrase) |
+| Pro | ✓ | ✗ | Bezahlter Render **gesperrt** (Freigabenachweis fehlt); „Film bereitstellen“ funktioniert |
+| Enterprise | ✓ | ✓ | alles funktioniert wie heute |
+
+Die Sperre entsteht durch den neuen Schritt **„Freigabe nachweisen“**: Er fragt die GitHub-API, ob genau dieser Lauf von dir für `paid-render` freigegeben wurde. Ohne Enterprise gibt es diesen Freigabe-Datensatz in privaten Repos nicht – dann bricht der Lauf ab, bevor ein Schlüssel benutzt wird. Ein bezahlter Render in einem privaten Repo ohne Enterprise braucht erst eine andere sichere Freigabe (eigener PR).
+
+**Ohne Umstellung:** Verschlüsseltes Artefakt an einem Computer mit `openssl` entschlüsseln (Abschnitt 6) und das MP4 per AirDrop/iCloud aufs iPhone schicken.
+
 ### 6.2 Film auf dem iPhone ansehen (ohne Terminal, GitHub Free)
 
 Die Seite **https://youtubeemo.github.io/storyhouse-originals/** entschlüsselt das verschlüsselte Artefakt **direkt im Safari des iPhones**. Die Seite hat keinerlei Netzwerkzugriff (Content-Security-Policy), Passphrase und Film verlassen das Gerät nicht. Veröffentlicht wird nur die Seite selbst (Ordner `player/`), nie ein Video.

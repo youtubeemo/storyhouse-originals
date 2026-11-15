@@ -47,4 +47,6 @@ Bestandsaufnahme und offene Punkte: [`docs/AUDIT.md`](docs/AUDIT.md).
 - **Keine Käufe:** Die Pipeline schließt kein Abo ab und kauft kein Guthaben. Ist bei ElevenLabs nutzungsbasierte Abrechnung (Overage) aktiv, bricht der Preflight ab.
 - **Lizenz:** Free-Tarif (keine kommerzielle Lizenz) wird verweigert; Musik (Eleven Music) erst nach bestätigter Lizenzprüfung per PR.
 - **Keine API-Schlüssel im Code** – `RUNWAYML_API_SECRET` und `ELEVENLABS_API_KEY` nur als Secrets der Umgebung `paid-render`, nie in Logs. Ein Test schlägt fehl, wenn ein Schlüssel im Repo auftaucht.
+- **Freigabenachweis:** Jeder bezahlte Render prüft per GitHub-API, dass genau dieser Lauf für `paid-render` freigegeben wurde – sonst Abbruch (schützt auch, falls Required Reviewers nicht greifen, z. B. privates Repo ohne Enterprise).
+- **Unverschlüsselte MP4** nur, wenn die GitHub-API direkt vor dem Upload ein privates Repo bestätigt; sonst nur verschlüsselt.
 - **Keine Veröffentlichung** – Videos landen ausschließlich als Workflow-Artefakt; bezahlte Ergebnisse nur verschlüsselt (das Repo ist öffentlich).

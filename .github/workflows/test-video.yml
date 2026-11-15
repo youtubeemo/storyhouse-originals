@@ -18,9 +18,13 @@
 #                      7) ElevenLabs-Konto: Kontingent reicht, kommerzielle Lizenz,
 #                         nutzungsbasierte Abrechnung (Overage) ist AUS, Stimme vorhanden
 #  Der Workflow kauft nichts: kein Abo, kein Guthaben, keine Nachbuchung.
-#  Es wird NICHTS veröffentlicht. Bezahlte Ergebnisse werden VERSCHLÜSSELT
-#  hochgeladen (öffentliches Repo: Artefakte sind für alle angemeldeten
-#  GitHub-Nutzer abrufbar).
+#                      8) Freigabe nachweisbar: GitHub-API bestätigt, dass eine
+#                         berechtigte Person DIESEN Lauf für paid-render freigegeben
+#                         hat (in privaten Repos ohne Enterprise gibt es das nicht
+#                         -> bezahlter Render wird verweigert)
+#  Es wird NICHTS veröffentlicht. Bezahlte Ergebnisse werden IMMER verschlüsselt
+#  hochgeladen. Zusätzlich unverschlüsselt (zum direkten Abspielen) NUR, wenn die
+#  GitHub-API unmittelbar vor dem Upload bestätigt, dass das Repo PRIVAT ist.
 # =====================================================================
 name: Film produzieren
 
@@ -116,6 +120,7 @@ jobs:
       cancel-in-progress: false
     permissions:
       contents: write   # nur für den Branch "budget-ledger"
+      actions: read     # Freigabe-Historie dieses Laufs lesen
     env:
       PROFILE: ${{ inputs.profile }}
       SCENES: ${{ inputs.scenes }}
@@ -129,6 +134,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      # Ersatz-Sicherung, falls Required Reviewers nicht greifen (z. B. privates Repo
+      # ohne Enterprise): ohne nachweisliche Freigabe kein bezahlter Render.
+      - name: Freigabe nachweisen (Required Reviewers)
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python -m storyhouse.github_guard approval --environment paid-render
       - name: Abhängigkeiten
         run: |
           sudo apt-get update -qq
@@ -177,4 +188,22 @@ jobs:
           name: render-${{ github.run_id }}-encrypted
           path: output/encrypted/
           retention-days: 14
+          if-no-files-found: ignore
+      # Unverschlüsselt NUR bei bestätigt privatem Repo (Prüfung direkt vor dem Upload).
+      - name: Sichtbarkeit prüfen (privat?)
+        id: visibility
+        if: ${{ always() }}
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python -m storyhouse.github_guard visibility
+      - name: Film unverschlüsselt hochladen (nur privates Repo)
+        if: ${{ always() && steps.visibility.outputs.private == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: film-${{ github.run_id }}-mp4
+          path: |
+            output/render/*.mp4
+            output/render/*.srt
+            output/render/LIZENZ_*.txt
+          retention-days: 7
           if-no-files-found: ignore

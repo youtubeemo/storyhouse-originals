@@ -1,0 +1,83 @@
+# =====================================================================
+#  Film bereitstellen – NUR MANUELL, KOSTENLOS
+#
+#  Entschlüsselt das Ergebnis eines bereits gelaufenen bezahlten Renders
+#  ("render-<RUN_ID>-encrypted") und lädt das MP4 unverschlüsselt als
+#  Artefakt hoch – zum direkten Abspielen, z. B. auf dem iPhone.
+#
+#  Kein Runway, kein ElevenLabs, kein Render, keine Kosten.
+#  Läuft NUR, wenn die GitHub-API bestätigt, dass das Repository PRIVAT ist
+#  (Prüfung vor dem Entschlüsseln UND direkt vor dem Upload). Ist es öffentlich
+#  oder schlägt die Prüfung fehl, bricht der Workflow ab, bevor irgendetwas
+#  entschlüsselt wird.
+#
+#  Benötigt das Secret ARTIFACT_PASSPHRASE aus dem Environment paid-render.
+#  Hinweis: Mit GitHub Free sind Environment-Secrets in privaten Repos nicht
+#  verfügbar – dann bricht der Workflow ab (siehe docs/ANLEITUNG.md, Abschnitt 6.1).
+# =====================================================================
+name: Film bereitstellen
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: "Lauf-ID des bezahlten Renders (Zahl aus der URL …/actions/runs/<RUN_ID>)"
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  provide:
+    if: ${{ github.ref == 'refs/heads/main' && github.actor == github.repository_owner }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: paid-render
+    permissions:
+      contents: read
+      actions: read     # Artefakt eines anderen Laufs dieses Repos laden
+    env:
+      SOURCE_RUN_ID: ${{ inputs.run_id }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Sichtbarkeit prüfen (muss privat sein)
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python -m storyhouse.github_guard visibility --require-private --github-output /dev/null
+      - name: Lauf-ID prüfen
+        run: |
+          case "$SOURCE_RUN_ID" in
+            ''|*[!0-9]*) echo "Lauf-ID muss eine Zahl sein"; exit 1 ;;
+          esac
+          echo "SOURCE_ARTIFACT=render-${SOURCE_RUN_ID}-encrypted" >> "$GITHUB_ENV"
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.SOURCE_ARTIFACT }}
+          run-id: ${{ env.SOURCE_RUN_ID }}
+          github-token: ${{ github.token }}
+          path: output/encrypted
+      - name: Entschlüsseln
+        env:
+          ARTIFACT_PASSPHRASE: ${{ secrets.ARTIFACT_PASSPHRASE }}
+        run: bash scripts/decrypt_outputs.sh output/encrypted output/plain
+      - name: Sichtbarkeit erneut prüfen (direkt vor dem Upload)
+        id: visibility
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python -m storyhouse.github_guard visibility --require-private
+      - name: Film unverschlüsselt hochladen (nur privates Repo)
+        if: ${{ steps.visibility.outputs.private == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: film-${{ env.SOURCE_RUN_ID }}-mp4
+          path: |
+            output/plain/*.mp4
+            output/plain/*.srt
+            output/plain/LIZENZ_*.txt
+          retention-days: 7
+          if-no-files-found: error
