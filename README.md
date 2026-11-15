@@ -31,6 +31,14 @@ python -m storyhouse dry-run --preview   # Platzhalter-Film inkl. Untertiteln + 
 pytest -q
 ```
 
+## Kosten & Werkzeuge
+
+```bash
+python -m storyhouse kosten --minuten 1 5 10   # Hochrechnung aus dem echten Plan (keine API)
+python -m storyhouse tools                      # geprüfte Werkzeuge: Status, Kosten, Lizenz
+```
+Bestandsaufnahme und offene Punkte: [`docs/AUDIT.md`](docs/AUDIT.md).
+
 ## Sicherheitsprinzipien
 
 - **Bezahltes Rendern ist gesperrt** (`paid_rendering_enabled: false`). Freischaltung nur per PR.

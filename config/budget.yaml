@@ -6,7 +6,9 @@
 # Hauptschalter. Solange false, verweigert die Pipeline JEDEN
 # kostenpflichtigen API-Aufruf – unabhängig von Workflow-Eingaben.
 # Freigegeben per PR durch die Produktion (14.11.2026) – NUR im Rahmen von paid_scope.
-paid_rendering_enabled: true
+# 15.11.2026 wieder auf false: Vorgabe „Bezahlte Filmproduktion bleibt deaktiviert, bis ich ausdrücklich
+# zustimme“. Für den nächsten S01-Test per PR wieder auf true setzen (paid_scope bleibt test/S01).
+paid_rendering_enabled: false
 
 # Freigabeumfang: Nur diese Profile/Szenen/Tonquellen dürfen bezahlt gerendert
 # werden. Alles andere bricht im Preflight ab, BEVOR Geld fließt – egal was im
@@ -70,3 +72,13 @@ elevenlabs:
   music_license_confirmed: false
   # Nicht konfigurierbar (im Code fest): Nutzungsbasierte Abrechnung/Overage
   # muss im ElevenLabs-Konto AUS sein, sonst bricht der Preflight ab.
+
+# ---------------------------------------------------------------------
+# Zusätzliche Anbieter – nur VORBEREITET (storyhouse/zusatz_anbieter.py).
+# Solange false, ruft der Code diese Anbieter nie auf – auch nicht mit
+# gesetztem Secret. Freischalten nur per eigenem PR nach deiner Zustimmung.
+# ---------------------------------------------------------------------
+zusatz_anbieter:
+  minimax: false   # Hailuo-02 Video        – Secret MINIMAX_API_KEY
+  hedra: false     # Character-3 Lippensync – Secret HEDRA_API_KEY (Endpunkte zusätzlich ungeprüft)
+  gemini: false    # Nano Banana Bilder     – Secret GEMINI_API_KEY

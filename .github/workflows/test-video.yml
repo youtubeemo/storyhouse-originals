@@ -81,6 +81,13 @@ jobs:
           extra=""
           if [ "$PREVIEW" = "true" ]; then extra="--preview"; fi
           python -m storyhouse dry-run --profile "$PROFILE" --scenes "$SCENES" --out output/dry-run $extra
+      - name: Qualitätsprüfung Dry-Run (0 €)
+        run: |
+          set -o pipefail
+          profil=shorts
+          if [ "$PREVIEW" = "true" ]; then profil=vorschau; fi   # 360×640, 12 fps
+          python scripts/videoqc.py output/dry-run/*.mp4 --profil "$profil" \
+            --srt "$(ls output/dry-run/*.srt | head -n 1)" --json output/dry-run/qualitaet.json | tee -a "$GITHUB_STEP_SUMMARY"
       # Enthält nur Inhalte, die ohnehin im (öffentlichen) Repo stehen.
       - uses: actions/upload-artifact@v4
         with:
@@ -144,6 +151,16 @@ jobs:
           bash scripts/ledger.sh push "reserve $STORYHOUSE_RUN_ID"
       - name: Rendern (kostenpflichtig)
         run: python -m storyhouse render --profile "$PROFILE" --scenes "$SCENES" --ledger .ledger/ledger.json --run-id "$STORYHOUSE_RUN_ID" --out output/render
+      # Prüft das bezahlte Ergebnis, blockiert aber nichts: das Geld ist ausgegeben, das Ergebnis wird
+      # in jedem Fall verschlüsselt gesichert. Bericht nur auf der Laufseite, keine Videodaten.
+      - name: Qualitätsprüfung (Länge, 9:16, Ton, Lautheit, Untertitel)
+        if: ${{ success() }}
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          mkdir -p output/qc
+          python scripts/videoqc.py output/render/*.mp4 --profil shorts \
+            --srt "$(ls output/render/*.srt | head -n 1)" --json output/qc/qualitaet.json | tee -a "$GITHUB_STEP_SUMMARY"
       - name: Kosten verbuchen
         if: ${{ always() }}
         run: |

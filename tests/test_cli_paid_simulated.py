@@ -196,6 +196,17 @@ def _paid_env(monkeypatch):
     monkeypatch.delenv("GITHUB_STEP_SUMMARY", raising=False)
 
 
+def _repo_budget_freigeschaltet(tmp_path):
+    """Echte config/budget.yaml des Repos – nur der Hauptschalter an (Umfang test/S01 unverändert).
+    Im Repo steht der Schalter seit 15.11.2026 wieder auf false (Freigabe nur per PR)."""
+    raw = yaml.safe_load((ROOT / "config" / "budget.yaml").read_text())
+    assert raw["paid_scope"] == {"profiles": ["test"], "scenes": ["S01"], "audio_providers": ["elevenlabs"]}
+    raw["paid_rendering_enabled"] = True
+    path = tmp_path / "budget_repo_freigeschaltet.yaml"
+    path.write_text(yaml.safe_dump(raw, allow_unicode=True))
+    return ["--budget-config", str(path)]
+
+
 @requires_ffmpeg
 def test_first_render_with_repo_config_test_s01(assets, tmp_path, monkeypatch):
     """Exakt der freigegebene erste Lauf – mit der echten config/budget.yaml des Repos."""
@@ -203,7 +214,8 @@ def test_first_render_with_repo_config_test_s01(assets, tmp_path, monkeypatch):
     monkeypatch.setattr("urllib.request.urlopen", net)
     _paid_env(monkeypatch)
     ledger, out = tmp_path / "ledger.json", tmp_path / "render"
-    common = ["--profile", "test", "--scenes", "S01", "--ledger", str(ledger), "--run-id", "first", "--out", str(out)]
+    common = ["--profile", "test", "--scenes", "S01", "--ledger", str(ledger), "--run-id", "first", "--out", str(out),
+              *_repo_budget_freigeschaltet(tmp_path)]
     for cmd in ("preflight", "reserve", "render", "finalize"):
         assert main([cmd, *common]) == 0, cmd
     assert not any(p["path"] == "/v1/music" for p in net.el_posts), "Musik bleibt gesperrt"
@@ -236,7 +248,8 @@ def test_missing_elevenlabs_permission_stops_before_runway_spends(assets, tmp_pa
     monkeypatch.setattr("urllib.request.urlopen", deny)
     _paid_env(monkeypatch)
     ledger, out = tmp_path / "ledger.json", tmp_path / "render"
-    common = ["--profile", "test", "--scenes", "S01", "--ledger", str(ledger), "--run-id", "deny", "--out", str(out)]
+    common = ["--profile", "test", "--scenes", "S01", "--ledger", str(ledger), "--run-id", "deny", "--out", str(out),
+              *_repo_budget_freigeschaltet(tmp_path)]
     if where == "subscription":
         assert main(["preflight", *common]) == 2
         assert not net.tasks and not net.el_posts
@@ -269,7 +282,8 @@ def test_private_test_with_free_tier_account(assets, tmp_path, monkeypatch):
     monkeypatch.setattr("urllib.request.urlopen", free)
     _paid_env(monkeypatch)
     ledger, out = tmp_path / "ledger.json", tmp_path / "render"
-    common = ["--profile", "test", "--scenes", "S01", "--ledger", str(ledger), "--run-id", "priv", "--out", str(out)]
+    common = ["--profile", "test", "--scenes", "S01", "--ledger", str(ledger), "--run-id", "priv", "--out", str(out),
+              *_repo_budget_freigeschaltet(tmp_path)]
     for cmd in ("preflight", "reserve", "render", "finalize"):
         assert main([cmd, *common]) == 0, cmd
 

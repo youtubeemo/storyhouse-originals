@@ -33,7 +33,7 @@ def test_free_tier_only_for_private_test_scope(cfg):
     for bad in ({"scope_profiles": ("test", "final")}, {"scope_profiles": ("final",)},
                 {"scope_profiles": None}, {"scope_scenes": ("all",)}, {"scope_scenes": None}):
         with pytest.raises(BudgetError, match="require_commercial_license"):
-            replace(cfg, **bad).validate()
+            replace(cfg, paid_rendering_enabled=True, **bad).validate()
     # Mit kommerzieller Lizenzpflicht darf der Umfang später erweitert werden
     replace(cfg, el_require_commercial_license=True, scope_profiles=("test", "final"), scope_scenes=("all",)).validate()
     assert cfg.total_budget_eur == 200.0 <= HARD_CEILING_EUR
