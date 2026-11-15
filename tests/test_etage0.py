@@ -28,7 +28,7 @@ def test_episode_ist_30_sekunden_deutsch_hochkant(e0):
 
 def test_plan_bleibt_unter_zehn_euro_und_ohne_musikjob(e0):
     pricing, cfg = Pricing.load(), BudgetConfig.load()
-    plan = build_plan(e0, pricing, profile="test", scenes="all", include_music=cfg.el_music_license_confirmed)
+    plan = build_plan(e0, pricing, profile="final", scenes="all", include_music=cfg.el_music_license_confirmed)
     assert {j.model for j in plan.jobs if j.kind == "video"} == {"gen4.5"}
     assert not [j for j in plan.jobs if j.kind == "music"]
     assert all(len(j.payload.get("referenceImages", [])) <= 3 for j in plan.jobs)
@@ -41,10 +41,10 @@ def test_plan_bleibt_unter_zehn_euro_und_ohne_musikjob(e0):
 
 def test_nur_etage0_ist_freigegeben_und_gedeckelt(e0, tmp_path):
     pricing, cfg = Pricing.load(), BudgetConfig.load()
-    plan = build_plan(e0, pricing, profile="test", scenes="all")
+    plan = build_plan(e0, pricing, profile="final", scenes="all")
     require_paid_scope(cfg, plan)
-    with pytest.raises(ApprovalError, match="Profil 'final'"):
-        require_paid_scope(cfg, build_plan(e0, pricing, profile="final", scenes="all"))
+    with pytest.raises(ApprovalError, match="Profil 'test'"):
+        require_paid_scope(cfg, build_plan(e0, pricing, profile="test", scenes="all"))
     eur = plan.total_eur(pricing, cfg)
     ledger = Ledger.load(tmp_path / "l.json")
     require_scope_budget(cfg, ledger, eur)                      # erster Lauf passt
@@ -70,3 +70,18 @@ def test_modellwahl_nur_fuer_bild_und_video(e0):
     e0.data["models"] = {"tts_model": "x"}
     with pytest.raises(EpisodeError, match="models.tts_model"):
         validate_episode(e0)
+
+
+def test_kommerziell_free_konto_wird_vor_dem_render_abgelehnt(e0):
+    """Starter-Pflicht: ein Free-Konto stoppt im Preflight; ein bezahltes Konto ergibt kein „privat“."""
+    from storyhouse.elevenlabs import check_subscription
+
+    cfg, pricing = BudgetConfig.load(), Pricing.load()
+    need = 2729
+    free = {"tier": "free", "status": "free", "character_count": 0, "character_limit": 10000,
+            "can_use_usage_based_billing": False, "next_invoice": None}
+    with pytest.raises(ApprovalError, match="Free-Tarif"):
+        check_subscription(free, need, cfg)
+    starter = {"tier": "starter", "status": "active", "character_count": 0, "character_limit": 30000,
+               "can_use_usage_based_billing": False, "next_invoice": None}
+    assert check_subscription(starter, need, cfg)["commercial_license"] is True

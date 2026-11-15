@@ -399,7 +399,8 @@ def test_paid_scope_only_allows_test_s01(cfg, episode, pricing):
     # Repo-Stand: nur ETAGE 0 freigegeben – The Reflection wird abgelehnt
     with pytest.raises(ApprovalError, match="Episode 'tos-ep01-the-reflection'"):
         require_paid_scope(cfg, build_plan(episode, pricing, profile="test", scenes="S01"))
-    cfg = replace(cfg, scope_scenes=("S01",), scope_episodes=None, scope_budget_eur=None)   # früherer S01-Umfang
+    cfg = replace(cfg, scope_profiles=("test",), scope_scenes=("S01",), scope_episodes=None,
+                  scope_budget_eur=None)   # früherer S01-Umfang
     require_paid_scope(cfg, build_plan(episode, pricing, profile="test", scenes="S01"))
     for profile, scenes, match in (("test", "all", "Szenen S02"), ("final", "S01", "Profil 'final'"),
                                    ("test", "S01,S02", "Szenen S02")):
