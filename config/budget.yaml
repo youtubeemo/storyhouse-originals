@@ -11,7 +11,10 @@
 # 15.11.2026 (zweiter PR): true NUR für das Testvideo „ETAGE 0 – Der verbotene Knopf“ – ausdrücklich
 # freigegeben mit höchstens 10 € Gesamtverbrauch (paid_scope.episodes + paid_scope.budget_eur).
 # Nach der Abnahme wieder auf false setzen.
-paid_rendering_enabled: true
+# 15.11.2026 (dritter PR): wieder false. Das Testvideo ist gerendert (Lauf 43724968662) und wurde NICHT
+# abgenommen. Für die Serienfassung (episodes/etage-0/s01e01-der-verbotene-knopf) gilt: zuerst Drehbuch,
+# Storyboard und kostenlose Vorschau freigeben – erst dann per eigenem PR Umfang und Budget neu festlegen.
+paid_rendering_enabled: false
 
 # Freigabeumfang: Nur diese Profile/Szenen/Tonquellen dürfen bezahlt gerendert
 # werden. Alles andere bricht im Preflight ab, BEVOR Geld fließt – egal was im

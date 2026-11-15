@@ -38,3 +38,24 @@ jobs:
         run: |
           python -m storyhouse estimate --profile test
           python -m storyhouse estimate --profile final
+      # Serienfassung ETAGE 0 – S01E01: Prüfen, Storyboard aktuell?, Kosten, kostenlose Vorschau (Animatic).
+      - name: ETAGE 0 S01E01 prüfen, Storyboard abgleichen, Kosten schätzen (0 €)
+        run: |
+          E=episodes/etage-0/s01e01-der-verbotene-knopf
+          python -m storyhouse validate --episode "$E"
+          python -m storyhouse storyboard --episode "$E" | diff - "$E/STORYBOARD.md"
+          python -m storyhouse estimate --episode "$E" --profile final --stills-only
+          python -m storyhouse estimate --episode "$E" --profile final
+      - name: ETAGE 0 S01E01 – Vorschau (Animatic, 0 €, kein Secret, kein API-Aufruf)
+        run: |
+          python -m storyhouse dry-run --preview --episode episodes/etage-0/s01e01-der-verbotene-knopf \
+            --profile final --out output/etage0-vorschau
+      # Enthält nur Inhalte, die ohnehin im Repo stehen (Texttafeln, Platzhaltertöne).
+      - uses: actions/upload-artifact@v4
+        with:
+          name: etage0-s01e01-vorschau
+          path: |
+            output/etage0-vorschau/*_dryrun.mp4
+            output/etage0-vorschau/*.srt
+            output/etage0-vorschau/estimate.md
+          retention-days: 14

@@ -13,7 +13,7 @@ from typing import Callable
 
 from storyhouse import ffmpeg as ff
 from storyhouse.budget import BudgetConfig, Pricing
-from storyhouse.episode import Episode
+from storyhouse.episode import Episode, speech_estimate_s
 from storyhouse.plan import Plan, build_plan, format_estimate
 from storyhouse.subtitles import write_subtitles
 
@@ -25,24 +25,37 @@ def _dims(ep: Episode, width: int | None, height: int | None, fps: int | None) -
     return (width or ep.fmt["width"], height or ep.fmt["height"], fps or ep.fmt["fps"])
 
 
+def _mk(folder: Path) -> Path:
+    folder.mkdir(parents=True, exist_ok=True)
+    return folder
+
+
 def _voice_fx(ep: Episode, character: str) -> str | None:
     fx_name = ep.characters[character].get("voice", {}).get("fx")
     return ep.sound.get("voice_fx", {}).get(fx_name) if fx_name else None
 
 
 def _dialogue_slots(ep: Episode) -> dict[str, float]:
-    """Verfügbare Zeit je Dialogzeile: bis kurz vor die nächste Zeile bzw. bis Filmende."""
-    lines = ep.dialogue
-    slots: dict[str, float] = {}
-    for i, line in enumerate(lines):
-        end = float(lines[i + 1]["at"]) - 0.10 if i + 1 < len(lines) else ep.duration
-        slots[line["id"]] = max(0.3, min(end, ep.duration) - float(line["at"]))
-    return slots
+    """Verfügbare Zeit je Dialogzeile (siehe Episode.dialogue_slots)."""
+    return ep.dialogue_slots()
+
+
+def _line_fx(ep: Episode, line: dict) -> str | None:
+    """Stimmeffekt einer Zeile: eigener Effekt der Zeile (z. B. „hinter der Tür“) vor dem der Figur."""
+    if line.get("fx"):
+        return ep.sound.get("voice_fx", {}).get(line["fx"])
+    return _voice_fx(ep, line["character"])
+
+
+def _tone(character: str) -> int:
+    """Platzhalter-Tonhöhe je Figur im Dry-Run (unterscheidbar, stabil)."""
+    return VOICE_TONES.get(character, 300 + sum(character.encode()) % 8 * 40)
 
 
 def assemble(ep: Episode, clips: dict[str, Path], dialogue_audio: dict[str, Path],
              sfx_audio: dict[str, Path], out_dir: Path, width: int, height: int, fps: int,
-             tag: str, music_audio: Path | None = None, metadata: dict[str, str] | None = None) -> dict:
+             tag: str, music_audio: Path | None = None, metadata: dict[str, str] | None = None,
+             grade: bool = True) -> dict:
     """Gemeinsamer Endschnitt für Dry-Run und echten Render.
 
     Ergebnis: <slug>_<tag>.mp4 (Film + Outro) und, falls ein Outro aktiv ist,
@@ -52,7 +65,8 @@ def assemble(ep: Episode, clips: dict[str, Path], dialogue_audio: dict[str, Path
     work.mkdir(parents=True, exist_ok=True)
 
     # 1) Bild: normalisieren + schneiden (jede Szene exakt auf ihre Dauer -> Bild folgt der Zeitachse)
-    norm = [ff.normalize_clip(clips[s["id"]], work / f"{s['id']}_norm.mp4", float(s["duration"]), width, height, fps)
+    norm = [ff.normalize_clip(clips[s["id"]], work / f"{s['id']}_norm.mp4", float(s["duration"]), width, height, fps,
+                              fade_in=float(s.get("fade_in", 0) or 0), fade_out=float(s.get("fade_out", 0) or 0))
             for s in ep.scenes]
     picture = ff.concat_clips(norm, work / "picture.mp4")
     loop = next((s.get("loop") for s in ep.scenes if s.get("loop")), None)
@@ -71,15 +85,21 @@ def assemble(ep: Episode, clips: dict[str, Path], dialogue_audio: dict[str, Path
             report = ff.fit_dialogue(dialogue_audio[line["id"]], fitted, slots[line["id"]])
             spoken[line["id"]] = report["fitted_s"]
             sync.append({"id": line["id"], "at": float(line["at"]), **report})
-            tracks.append(ff.Track(fitted, float(line["at"]), 0.0, "dialogue",
-                                   _voice_fx(ep, line["character"])))
+            tracks.append(ff.Track(fitted, float(line["at"]), float(line.get("gain_db", 0.0)), "dialogue",
+                                   _line_fx(ep, line)))
     for d in ep.sound.get("drones", []):
         if d["id"] in sfx_audio:
-            tracks.append(ff.Track(sfx_audio[d["id"]], float(d.get("at", 0.0)), float(d["gain_db"]), "bed",
-                                   fill=bool(d.get("repeat_to_fill"))))
+            at = float(d.get("at", 0.0))
+            length = float(d["until"]) - at if d.get("until") is not None else None
+            tracks.append(ff.Track(sfx_audio[d["id"]], at, float(d["gain_db"]), "bed",
+                                   fill=bool(d.get("repeat_to_fill")), length=length,
+                                   fade_in=float(d.get("fade_in", 0) or 0), fade_out=float(d.get("fade_out", 0) or 0)))
     for s in ep.sound.get("sfx", []):
         if s["id"] in sfx_audio:
-            tracks.append(ff.Track(sfx_audio[s["id"]], float(s["at"]), float(s["gain_db"]), "bed"))
+            fade_out = float(s.get("fade_out", 0) or 0)
+            tracks.append(ff.Track(sfx_audio[s["id"]], float(s["at"]), float(s["gain_db"]), "bed",
+                                   length=float(s["duration"]) if fade_out else None,
+                                   fade_in=float(s.get("fade_in", 0) or 0), fade_out=fade_out))
     music_cfg = ep.sound.get("music", {})
     licensed = REPO_ROOT / music_cfg["file"] if music_cfg.get("file") else None
     music_source = None
@@ -91,9 +111,12 @@ def assemble(ep: Episode, clips: dict[str, Path], dialogue_audio: dict[str, Path
         tracks.append(ff.Track(music_audio, 0.0, float(music_cfg.get("bed_gain_db", -16)), "bed", edge_fade=fade))
         music_source = "generated"
     windows = [(float(w["from"]), float(w["to"])) for w in ep.sound.get("silence_windows", [])]
+    # Erst die rohe Mischung, dann Mastering mit festem Pegel + Limiter (erhält Stille und Dynamik).
+    premix = work / "premix.wav"
     mix = work / "mix.wav"
-    ff.run(ff.build_mix_command(tracks, ep.duration, mix, windows,
-                                float(ep.fmt.get("loudness_lufs", -14)), float(ep.fmt.get("true_peak_db", -1))))
+    ff.run(ff.build_mix_command(tracks, ep.duration, premix, windows, normalize=False))
+    mastering = ff.master_audio(premix, mix, float(ep.fmt.get("loudness_lufs", -14)),
+                                float(ep.fmt.get("true_peak_db", -1)))
 
     # 3) Untertitel (an die tatsächliche Sprechdauer angepasst)
     srt, ass = write_subtitles(ep, out_dir, spoken)
@@ -101,21 +124,24 @@ def assemble(ep: Episode, clips: dict[str, Path], dialogue_audio: dict[str, Path
     # 4) Export: Loop-Fassung und Hauptfassung mit Outro
     final = out_dir / f"{ep.slug}_{tag}.mp4"
     result: dict = {"srt": str(srt), "ass": str(ass), "music_used": music_source is not None,
-                    "music_source": music_source, "tracks": len(tracks), "sync": sync, "outro": bool(ep.outro)}
+                    "music_source": music_source, "tracks": len(tracks), "sync": sync, "outro": bool(ep.outro),
+                    "mastering": mastering,
+                    # Zeilen, die beschleunigt oder gekürzt werden mussten – im fertigen Film hörbar, also melden.
+                    "dialogue_problems": [s["id"] for s in sync if s["cut"] or s["tempo"] > 1.001]}
     if ep.outro:
         loop_file = out_dir / f"{ep.slug}_{tag}_loop.mp4"
-        ff.finalize(picture, mix, ass, loop_file, ep.duration, metadata=metadata)
+        ff.finalize(picture, mix, ass, loop_file, ep.duration, grade=grade, metadata=metadata)
         outro_s = ep.outro_duration
         card = ff.outro_clip(ep.outro, work / "outro.mp4", width, height, fps)
         sting_cfg = ep.outro.get("sting") or {}
         tail = ff.outro_audio(sfx_audio.get("outro_sting"), work / "outro.wav", outro_s,
                               float(sting_cfg.get("gain_db", -10)))
         full_mix = ff.concat_audio([mix, tail], work / "mix_full.wav")
-        ff.finalize(picture, full_mix, ass, final, ep.duration, outro=card, outro_duration=outro_s,
+        ff.finalize(picture, full_mix, ass, final, ep.duration, grade=grade, outro=card, outro_duration=outro_s,
                     metadata=metadata)
         result.update({"loop_video": str(loop_file), "loop_probe": ff.probe(loop_file)})
     else:
-        ff.finalize(picture, mix, ass, final, ep.duration, metadata=metadata)
+        ff.finalize(picture, mix, ass, final, ep.duration, grade=grade, metadata=metadata)
     info = ff.probe(final)
     drift = None
     if info.get("video_duration") and info.get("audio_duration"):
@@ -137,8 +163,8 @@ def dry_run(ep_full: Episode, out_dir: Path, pricing: Pricing, cfg: BudgetConfig
     raw = out_dir / "raw"
     clips = {s["id"]: ff.placeholder_clip(s, raw / f"VID_{s['id']}.mp4", w, h, r) for s in ep.scenes}
     dia = {
-        d["id"]: ff.placeholder_tone(raw / f"TTS_{d['id']}.wav", max(0.6, len(d["text"]) / 13),
-                                     VOICE_TONES.get(d["character"], 440))
+        d["id"]: ff.placeholder_tone(raw / f"TTS_{d['id']}.wav", max(0.6, speech_estimate_s(d)),
+                                     _tone(d["character"]))
         for d in ep.dialogue
     }
     sfx = {x["id"]: ff.placeholder_noise(raw / f"SFX_{x['id']}.wav", float(x["duration"]))
@@ -150,7 +176,8 @@ def dry_run(ep_full: Episode, out_dir: Path, pricing: Pricing, cfg: BudgetConfig
         sfx["outro_sting"] = ff.placeholder_drone(raw / "SFX_outro_sting.wav", float(sting["duration"]))
     # Musikpfad wird im Dry-Run immer geprobt, auch wenn Musik für bezahlte Läufe noch gesperrt ist.
     music = ff.placeholder_music(raw / "MUSIC_score.wav", ep.duration) if ep.music_generate else None
-    result = assemble(ep, clips, dia, sfx, out_dir, w, h, r, tag="dryrun", music_audio=music)
+    # Ohne Farbkorrektur: deren Filmkorn bläht die Platzhalter-Vorschau auf das Hundertfache auf.
+    result = assemble(ep, clips, dia, sfx, out_dir, w, h, r, tag="dryrun", music_audio=music, grade=False)
 
     plan = plan or build_plan(ep_full, pricing, profile=profile, scenes=scenes, audio_provider=audio_provider,
                               include_music=cfg.el_music_license_confirmed)
@@ -188,6 +215,8 @@ def paid_render(ep_full: Episode, plan: Plan, client, out_dir: Path, scenes: str
     raw = out_dir / "raw"
     outputs: dict[str, str] = {}
     files: dict[str, Path] = {}
+    for key, path in plan.frozen_refs.items():  # abgenommene Referenzbilder aus dem Repo – kein API-Aufruf
+        outputs[key] = ff.image_to_data_uri(Path(shutil.copy2(path, _mk(raw) / f"{key}{Path(path).suffix}")))
     started = time.time()
     try:
         # ElevenLabs zuerst: Ton ist billig und hängt von nichts ab. Fehlt eine Berechtigung
@@ -225,11 +254,20 @@ def paid_render(ep_full: Episode, plan: Plan, client, out_dir: Path, scenes: str
         (out_dir / "outputs.json").write_text(json.dumps({k: str(v) for k, v in files.items()}, indent=2),
                                               encoding="utf-8")
 
-    clips = {s["id"]: files[f"VID_{s['id']}"] for s in ep.scenes}
+    w, h, r = _dims(ep, None, None, None)
+    clips = {}
+    for s in ep.scenes:
+        if f"VID_{s['id']}" in files:
+            clips[s["id"]] = files[f"VID_{s['id']}"]
+        else:  # Bild-Storyboard-Stufe (--stills-only): Keyframe als Standbild-Einstellung
+            clips[s["id"]] = ff.still_clip(files[f"KF_{s['id']}"], raw / f"STILL_{s['id']}.mp4",
+                                           float(s["duration"]), w, h, r)
+    stills = not any(j.kind == "video" for j in plan.jobs)
     dia = {d["id"]: files[f"TTS_{d['id']}"] for d in ep.dialogue if f"TTS_{d['id']}" in files}
     sfx = {k[4:]: v for k, v in files.items() if k.startswith("SFX_")}
-    w, h, r = _dims(ep, None, None, None)
     tag = f"{plan.profile}_PRIVAT" if private_only else f"{plan.profile}"
+    if stills:
+        tag += "_standbild"
     metadata = {"comment": PRIVATE_NOTICE, "copyright": "nicht kommerziell - privater Test"} if private_only else None
     result = assemble(ep, clips, dia, sfx, out_dir, w, h, r, tag=tag,
                       music_audio=files.get("MUSIC_score"), metadata=metadata)

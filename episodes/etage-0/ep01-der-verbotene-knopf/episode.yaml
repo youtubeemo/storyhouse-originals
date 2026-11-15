@@ -8,6 +8,7 @@ series: ETAGE 0
 episode: 1
 title: DER VERBOTENE KNOPF
 slug: etage-0-der-verbotene-knopf
+language: de   # Dialoge sind deutsch (vorher wurde ElevenLabs fest 'en' mitgegeben)
 genre: mystery thriller
 logline: >
   Nachts erscheint in einem alten Aufzug eine Taste, die es nicht geben dürfte.

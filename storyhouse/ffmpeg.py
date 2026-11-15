@@ -70,25 +70,46 @@ def _escape_filter_path(p: Path) -> str:
 def placeholder_clip(scene: dict, out: Path, width: int, height: int, fps: int) -> Path:
     out.parent.mkdir(parents=True, exist_ok=True)
     txt = out.with_suffix(".txt")
-    body = textwrap.fill(" ".join(scene["motion_prompt"].split()), width=34)
+
+    def block(label: str, key: str) -> str:
+        value = " ".join(str(scene.get(key, "")).split())
+        return f"{label}\n{textwrap.fill(value, width=44)}\n\n" if value else ""
+
+    # Animatic-Tafel: deutsch, in der Reihenfolge, in der ein Storyboard gelesen wird. Sie steht im
+    # mittleren Bildband – oben bleibt Platz für Einblendungen (Uhrzeit, Nachricht), unten für Untertitel.
+    # Ohne "action" (ältere Episoden) steht wie bisher der Bewegungsprompt da.
+    body = (block("EINSTELLUNG", "shot") + block("KAMERA", "camera") + block("HANDLUNG", "action")
+            if scene.get("action") else
+            f"{textwrap.fill(scene['shot'], width=44)}\n\n"
+            f"{textwrap.fill(' '.join(scene['motion_prompt'].split()), width=44)}\n")
+    head = " · ".join(str(x) for x in (scene.get("act"), scene.get("location")) if x)
     txt.write_text(
-        f"DRY-RUN  ·  KEIN KOSTENPFLICHTIGER RENDER\n\n"
-        f"{scene['id']} – {scene['name']}\n"
-        f"{scene['start']:.1f}s – {scene['start'] + scene['duration']:.1f}s\n\n"
-        f"{textwrap.fill(scene['shot'], width=34)}\n\n{body}\n",
+        # Kein Leerzeilen-Ende: drawtext (FFmpeg 6) zeichnet sonst die ganze Tafel nicht.
+        ((f"{head}\n" if head else "")
+         + f"{scene['id']} – {scene['name']}\n"
+         f"{scene['start']:.1f}s – {scene['start'] + scene['duration']:.1f}s\n\n{body}").rstrip() + "\n",
         encoding="utf-8",
     )
-    fs = max(12, height // 48)
+    note = out.with_name(out.stem + "_hinweis.txt")
+    note.write_text("DRY-RUN  ·  KEIN KOSTENPFLICHTIGER RENDER", encoding="utf-8")
+    fs = max(10, height // 58)
     dur = int(scene["render_duration"])
+    # Jeder Akt/Ort bekommt eine eigene (dunkle, aber nicht schwarze) Tafelfarbe: Im Animatic sieht man so
+    # auf einen Blick, wo ein neuer Abschnitt beginnt – und die Schwarzbild-Prüfung schlägt nicht fälschlich an.
+    palette = ["0x1f3a44", "0x3a3320", "0x2b2f4a", "0x4a2424", "0x1f4034", "0x40284a"]
+    key = str(scene.get("act") or "")
+    colour = palette[sum(key.encode()) % len(palette)] if key else "0x1f3a44"
     vf = (
-        f"noise=alls=18:allf=t,vignette=PI/4,"
+        f"noise=alls=6:allf=t,vignette=PI/4,"
         f"drawtext={_font_opt()}:textfile='{_escape_filter_path(txt)}':fontcolor=white@0.92:"
-        f"fontsize={fs}:line_spacing={fs // 3}:x=(w-text_w)/2:y=h*0.18:box=1:boxcolor=black@0.45:boxborderw={fs // 2},"
+        f"fontsize={fs}:line_spacing={fs // 3}:x=(w-text_w)/2:y=h*0.24:box=1:boxcolor=black@0.45:boxborderw={fs // 2},"
+        f"drawtext={_font_opt()}:textfile='{_escape_filter_path(note)}':fontcolor=white@0.55:fontsize={fs}:"
+        f"x=(w-text_w)/2:y=h*0.955,"
         f"drawtext={_font_opt()}:text='%{{pts\\:hms\\:{float(scene['start']):.3f}}}':fontcolor=white@0.7:fontsize={fs}:x=w*0.06:y=h*0.06"
     )
     run([
         "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
-        "-f", "lavfi", "-i", f"color=c=0x0d1a1e:s={width}x{height}:r={fps}:d={dur}",
+        "-f", "lavfi", "-i", f"color=c={colour}:s={width}x{height}:r={fps}:d={dur}",
         "-vf", vf, "-c:v", "libx264", "-preset", "veryfast", "-crf", "28", "-pix_fmt", "yuv420p",
         str(out),
     ])
@@ -156,14 +177,26 @@ def outro_clip(outro: dict, out: Path, width: int, height: int, fps: int) -> Pat
         (str(outro.get("subtitle", "")), 0.042, 0.535, False, 0.85),
         (str(outro.get("tagline", "")), 0.026, 0.60, False, 0.55),
     ]
+    appear = [0.0] * len(rows)
+    colours = [colour] * len(rows)
+    if outro.get("rows"):
+        # Frei gesetzte Zeilen (z. B. Entscheidungskarte „WAS SOLL LEON TUN? A / B“), jede mit eigenem Einsatz.
+        custom = outro["rows"]
+        rows = [(str(r["text"]), float(r.get("size", 0.04)), float(r.get("y", 0.5)), bool(r.get("bold", False)),
+                 float(r.get("alpha", 1.0))) for r in custom]
+        appear = [float(r.get("appear_at", 0.0)) for r in custom]
+        colours = [str(r.get("colour", colour)) for r in custom]
     filters = []
     for i, (text, rel_size, rel_y, bold, alpha) in enumerate(rows):
         if not text.strip():
             continue
         txt = out.with_name(f"{out.stem}_{i}.txt")
         txt.write_text(text, encoding="utf-8")  # textfile: keine Escaping-Probleme
+        # weiches Einblenden der Zeile ab ihrem Einsatz (0,3 s)
+        a = f"{alpha}*min(1\\,max(0\\,(t-{appear[i]:.3f})/0.3))" if appear[i] > 0 else f"{alpha}"
         filters.append(
-            f"drawtext={_font_opt(bold)}:textfile='{_escape_filter_path(txt)}':fontcolor={colour}@{alpha}:"
+            f"drawtext={_font_opt(bold)}:textfile='{_escape_filter_path(txt)}':fontcolor={colours[i]}:"
+            f"alpha='{a}':"
             f"fontsize={max(8, int(width * rel_size))}:x=(w-text_w)/2:y=h*{rel_y}-text_h/2"
         )
     filters += [f"fade=t=in:st=0:d={fade:.3f}", f"fade=t=out:st={dur - fade:.3f}:d={fade:.3f}", "format=yuv420p"]
@@ -183,7 +216,7 @@ def outro_audio(sting: Path | None, out: Path, duration: float, gain_db: float =
     tail = f"apad=whole_dur={duration:.3f},atrim=0:{duration:.3f},afade=t=out:st={duration - fade:.3f}:d={fade:.3f}"
     if sting and sting.exists():
         cmd = ["ffmpeg", "-y", "-hide_banner", "-loglevel", "error", "-i", str(sting), "-af",
-               f"aformat=sample_rates=48000:channel_layouts=stereo,volume={gain_db}dB,alimiter=limit=0.89,{tail}"]
+               f"aformat=sample_rates=48000:channel_layouts=stereo,volume={gain_db}dB,alimiter=limit=0.79:level=false,{tail}"]
     else:
         cmd = ["ffmpeg", "-y", "-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i",
                "anullsrc=r=48000:cl=stereo", "-af", tail]
@@ -256,19 +289,41 @@ def fit_dialogue(src: Path, dst: Path, slot_s: float) -> dict:
 # ---------------------------------------------------------------------
 # Video
 # ---------------------------------------------------------------------
-def normalize_clip(src: Path, dst: Path, duration: float, width: int, height: int, fps: int) -> Path:
-    """Auf Zielformat skalieren/croppen, Framerate setzen, exakt auf Szenendauer schneiden."""
+def normalize_clip(src: Path, dst: Path, duration: float, width: int, height: int, fps: int,
+                   fade_in: float = 0.0, fade_out: float = 0.0) -> Path:
+    """Auf Zielformat skalieren/croppen, Framerate setzen, exakt auf Szenendauer schneiden.
+
+    fade_in/fade_out: Auf-/Abblende von/nach Schwarz INNERHALB der Szenendauer (die Zeitachse bleibt
+    sekundengenau). Damit entstehen bewusste Übergänge – Blackout, Abblende am Aktende – statt nur harter Schnitte.
+    """
     dst.parent.mkdir(parents=True, exist_ok=True)
     vf = (
         f"scale={width}:{height}:force_original_aspect_ratio=increase:flags=lanczos,"
         f"crop={width}:{height},fps={fps},setsar=1,format=yuv420p"
     )
+    if fade_in > 0:
+        vf += f",fade=t=in:st=0:d={fade_in:.3f}"
+    if fade_out > 0:
+        vf += f",fade=t=out:st={max(0.0, duration - fade_out):.3f}:d={fade_out:.3f}"
     run([
         "ffmpeg", "-y", "-hide_banner", "-loglevel", "error", "-i", str(src),
         "-vf", vf, "-t", f"{duration:.3f}", "-an",
         "-c:v", "libx264", "-preset", "veryfast", "-crf", "16", str(dst),
     ])
     return dst
+
+
+def still_clip(image: Path, out: Path, duration: float, width: int, height: int, fps: int) -> Path:
+    """Standbild als Einstellung (Bild-Storyboard-Stufe): der Keyframe mit einer sehr langsamen Seitwärtsfahrt.
+    So lässt sich der ganze Film mit echten Bildern, Stimmen und Ton abnehmen, BEVOR Video bezahlt wird."""
+    out.parent.mkdir(parents=True, exist_ok=True)
+    big_w, big_h = int(width * 1.06) // 2 * 2, int(height * 1.06) // 2 * 2
+    vf = (f"scale={big_w}:{big_h}:force_original_aspect_ratio=increase:flags=lanczos,crop={big_w}:{big_h},"
+          f"crop={width}:{height}:x='(in_w-{width})*t/{max(duration, 0.1):.3f}':y='(in_h-{height})/2',"
+          f"fps={fps},setsar=1,format=yuv420p")
+    run(["ffmpeg", "-y", "-hide_banner", "-loglevel", "error", "-loop", "1", "-framerate", str(fps), "-i", str(image),
+         "-vf", vf, "-t", f"{duration:.3f}", "-an", "-c:v", "libx264", "-preset", "veryfast", "-crf", "16", str(out)])
+    return out
 
 
 def concat_clips(clips: Sequence[Path], dst: Path) -> Path:
@@ -326,11 +381,15 @@ class Track:
     fx: str | None = None
     fill: bool = False          # bis Filmende wiederholen (Drones)
     edge_fade: float = 0.0      # Ein-/Ausblenden NUR dieser Spur (Musik an der Loop-Naht)
+    length: float | None = None  # Spur nach so vielen Sekunden beenden (Stem endet am Aktwechsel)
+    fade_in: float = 0.0        # weiches Einsetzen dieser Spur
+    fade_out: float = 0.0       # weiches Ausklingen (braucht length)
 
 
 def build_mix_command(tracks: Sequence[Track], duration: float, out: Path,
                       silence_windows: Sequence[tuple[float, float]] = (),
-                      loudness: float = -14.0, true_peak: float = -1.0) -> list[str]:
+                      loudness: float = -14.0, true_peak: float = -1.0, normalize: bool = True) -> list[str]:
+    """normalize=False liefert die rohe Mischung; die Lautheit setzt danach master_audio (siehe dort)."""
     cmd = ["ffmpeg", "-y", "-hide_banner", "-loglevel", "error"]
     parts: list[str] = []
     dia, bed = [], []
@@ -342,8 +401,15 @@ def build_mix_command(tracks: Sequence[Track], duration: float, out: Path,
         chain = ["aformat=sample_rates=48000:channel_layouts=stereo"]
         if t.fx:
             chain.append(t.fx)
-        if t.fill:
-            chain.append(f"atrim=0:{max(0.0, duration - t.at):.3f}")
+        span = max(0.0, duration - t.at)
+        if t.length is not None:
+            span = min(span, float(t.length))
+        if t.fill or t.length is not None:
+            chain.append(f"atrim=0:{span:.3f}")
+        if t.fade_in > 0:
+            chain.append(f"afade=t=in:d={t.fade_in:.3f}")
+        if t.fade_out > 0 and t.length is not None:
+            chain.append(f"afade=t=out:st={max(0.0, span - t.fade_out):.3f}:d={t.fade_out:.3f}")
         if t.edge_fade > 0:
             span = max(0.0, duration - t.at)
             chain += [f"apad=whole_dur={span:.3f}", f"atrim=0:{span:.3f}", f"afade=t=in:d={t.edge_fade:.3f}",
@@ -376,11 +442,55 @@ def build_mix_command(tracks: Sequence[Track], duration: float, out: Path,
     post = [f"apad=whole_dur={duration:.3f}", f"atrim=0:{duration:.3f}"]
     for a, b in silence_windows:
         post.append(f"volume=enable='between(t,{a:.3f},{b:.3f})':volume=0")
-    post += [f"loudnorm=I={loudness}:TP={true_peak}:LRA=11", "aresample=48000"]
+    if normalize:
+        post.append(f"loudnorm=I={loudness}:TP={true_peak}:LRA=11")
+    post.append("aresample=48000")
     parts.append(f"[pre]{','.join(post)}[out]")
 
     cmd += ["-filter_complex", ";".join(parts), "-map", "[out]", "-c:a", "pcm_s16le", str(out)]
     return cmd
+
+
+AAC_HEADROOM_DB = 1.0   # AAC-Kodierung hebt Spitzen um bis zu ~1 dB an -> Limiter entsprechend tiefer
+MAX_LIMITING_DB = 6.0   # mehr als 6 dB Spitzenbegrenzung würde die Schockmomente plattdrücken
+
+
+def measure_loudness(path: Path) -> dict[str, float]:
+    """Integrierte Lautheit (LUFS) und True Peak (dBTP) nach EBU R128."""
+    proc = subprocess.run(["ffmpeg", "-hide_banner", "-nostats", "-i", str(path),
+                           "-af", "loudnorm=print_format=json", "-f", "null", "-"],
+                          capture_output=True, text=True)
+    start = proc.stderr.rfind("{")
+    try:
+        data = json.loads(proc.stderr[start: proc.stderr.rfind("}") + 1])
+        return {"lufs": float(data["input_i"]), "true_peak": float(data["input_tp"])}
+    except (ValueError, KeyError) as exc:
+        raise FFmpegError(f"{path}: Lautheit nicht messbar") from exc
+
+
+def master_audio(src: Path, dst: Path, loudness: float = -14.0, true_peak: float = -1.0) -> dict:
+    """Mastering in zwei Schritten: messen, dann EIN fester Pegel + Spitzenbegrenzer.
+
+    Die bisherige Ein-Schritt-Normalisierung (loudnorm, dynamisch) regelte laufend nach: leise Stellen wurden
+    hochgezogen (bewusste Stille rauschte auf, Atmer pumpten) und der True Peak lag im fertigen Film trotzdem
+    über dem Grenzwert (Renderlauf 43724968662: -0,4 statt -1 dBTP). Hier bleibt die Dynamik der Mischung
+    erhalten – Stille bleibt Stille, ein Schlag bleibt ein Schlag – und der Limiter (4-fach überabgetastet)
+    hält die Spitze sicher unter dem Grenzwert, auch nach der AAC-Kodierung.
+    """
+    before = measure_loudness(src)
+    ceiling = true_peak - AAC_HEADROOM_DB
+    if before["lufs"] < -69:  # praktisch still (z. B. Dry-Run ohne Spuren): nichts anheben
+        gain = 0.0
+    else:
+        gain = min(loudness - before["lufs"], ceiling - before["true_peak"] + MAX_LIMITING_DB)
+    limit = 10 ** (ceiling / 20)
+    run(["ffmpeg", "-y", "-hide_banner", "-loglevel", "error", "-i", str(src), "-af",
+         f"volume={gain:.2f}dB,aresample=192000,alimiter=limit={limit:.4f}:attack=5:release=80:level=false,"
+         "aresample=48000", "-c:a", "pcm_s16le", str(dst)])
+    after = measure_loudness(dst)
+    return {"gain_db": round(gain, 2), "lufs_vorher": before["lufs"], "lufs": after["lufs"],
+            "true_peak_dbtp": after["true_peak"], "ziel_lufs": loudness, "grenze_dbtp": true_peak,
+            "limiter_arbeitet_db": round(max(0.0, before["true_peak"] + gain - ceiling), 2)}
 
 
 # ---------------------------------------------------------------------

@@ -20,7 +20,8 @@ def build_cues(ep: Episode, spoken: dict[str, float] | None = None) -> list[Cue]
     style = ep.subtitle_style
     min_disp = float(style.get("min_display_s", 1.0))
     cps = float(style.get("chars_per_second", 15))
-    lines = ep.dialogue
+    # Zeilen mit subtitle: false (z. B. Echo-Stimmen hinter den Türen) werden gesprochen, aber nicht untertitelt.
+    lines = [line for line in ep.dialogue if line.get("subtitle", True)]
     cues: list[Cue] = []
     for i, line in enumerate(lines):
         start = float(line["at"])
@@ -78,7 +79,33 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         f"Dialogue: 0,{_ts_ass(c.start)},{_ts_ass(c.end)},Default,,0,0,0,,{c.text.replace(chr(10), r'\N')}"
         for c in cues
     ]
+    events += overlay_events(ep)
     return header + "\n".join(events) + "\n"
+
+
+# Texteinblendungen im Bild: Aussehen je Stil (ASS-Tags). Farben sind &HBBGGRR&.
+_OVERLAY_LOOK = {
+    "uhr":       {"size": 0.085, "tags": r"\b1\bord3\shad0\blur0.6\c&HFFFFFF&\3c&H000000&"},
+    "nachricht": {"size": 0.040, "tags": r"\b1\bord18\shad0\c&HFFFFFF&\3c&H2A1F1C&\3a&H18&"},
+    "anzeige":   {"size": 0.200, "tags": r"\b1\bord2\shad0\blur5\c&H2020FF&\3c&H1010B0&"},
+    "titel":     {"size": 0.070, "tags": r"\b1\bord4\shad0\c&HFFFFFF&\3c&H000000&"},
+}
+
+
+def overlay_events(ep: Episode) -> list[str]:
+    """Uhrzeit, Handy-Nachrichten, Etagenanzeige: als ASS-Ereignisse über dem Bild (werden mit eingebrannt).
+    Sie stehen NICHT in der SRT-Datei – die enthält nur gesprochenen Dialog."""
+    w, h = ep.fmt["width"], ep.fmt["height"]
+    out = []
+    for o in ep.overlays:
+        look = _OVERLAY_LOOK[o.get("style", "nachricht")]
+        size = int(round(w * float(o.get("size", look["size"]))))
+        x, y = int(round(w * float(o.get("x", 0.5)))), int(round(h * float(o.get("y", 0.5))))
+        fade = int(round(1000 * float(o.get("fade_s", 0.15))))
+        text = str(o["text"]).strip().replace("\n", r"\N")
+        out.append(f"Dialogue: 1,{_ts_ass(float(o['from']))},{_ts_ass(float(o['to']))},Default,,0,0,0,,"
+                   f"{{\\an5\\pos({x},{y})\\fad({fade},{fade})\\fs{size}{look['tags']}}}{text}")
+    return out
 
 
 def write_subtitles(ep: Episode, out_dir: Path, spoken: dict[str, float] | None = None) -> tuple[Path, Path]:
