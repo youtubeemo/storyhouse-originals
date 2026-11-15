@@ -36,6 +36,13 @@ on:
         type: choice
         options: [dry-run, paid-render]
         default: dry-run
+      episode:
+        description: "Welche Episode (bezahlt nur, wenn in paid_scope.episodes freigegeben)"
+        type: choice
+        options:
+          - episodes/the-other-side/ep01-the-reflection
+          - episodes/etage-0/ep01-der-verbotene-knopf
+        default: episodes/the-other-side/ep01-the-reflection
       profile:
         description: "test = günstige Modelle, final = Endqualität"
         type: choice
@@ -65,6 +72,7 @@ jobs:
     timeout-minutes: 30
     env:
       PROFILE: ${{ inputs.profile }}
+      EPISODE: ${{ inputs.episode }}
       SCENES: ${{ inputs.scenes }}
       PREVIEW: ${{ inputs.preview }}
     steps:
@@ -84,7 +92,7 @@ jobs:
         run: |
           extra=""
           if [ "$PREVIEW" = "true" ]; then extra="--preview"; fi
-          python -m storyhouse dry-run --profile "$PROFILE" --scenes "$SCENES" --out output/dry-run $extra
+          python -m storyhouse dry-run --episode "$EPISODE" --profile "$PROFILE" --scenes "$SCENES" --out output/dry-run $extra
       - name: Qualitätsprüfung Dry-Run (0 €)
         run: |
           set -o pipefail
@@ -123,6 +131,7 @@ jobs:
       actions: read     # Freigabe-Historie dieses Laufs lesen
     env:
       PROFILE: ${{ inputs.profile }}
+      EPISODE: ${{ inputs.episode }}
       SCENES: ${{ inputs.scenes }}
       STORYHOUSE_APPROVAL: ${{ inputs.approval }}
       STORYHOUSE_RUN_ID: run-${{ github.run_id }}-${{ github.run_attempt }}
@@ -149,19 +158,19 @@ jobs:
       - name: Tests
         run: pytest -q
       - name: Generalprobe (Dry-Run, 0 €)
-        run: python -m storyhouse dry-run --preview --profile "$PROFILE" --scenes "$SCENES" --out output/rehearsal
+        run: python -m storyhouse dry-run --preview --episode "$EPISODE" --profile "$PROFILE" --scenes "$SCENES" --out output/rehearsal
       - name: Ledger holen
         run: bash scripts/ledger.sh pull
       - name: Budgetstand
         run: python -m storyhouse budget-status --ledger .ledger/ledger.json
       - name: Preflight (Freigabe, Preise, Budget, Guthaben)
-        run: python -m storyhouse preflight --profile "$PROFILE" --scenes "$SCENES" --ledger .ledger/ledger.json
+        run: python -m storyhouse preflight --episode "$EPISODE" --profile "$PROFILE" --scenes "$SCENES" --ledger .ledger/ledger.json
       - name: Budget reservieren und sichern (vor jeder Ausgabe)
         run: |
-          python -m storyhouse reserve --profile "$PROFILE" --scenes "$SCENES" --ledger .ledger/ledger.json --run-id "$STORYHOUSE_RUN_ID"
+          python -m storyhouse reserve --episode "$EPISODE" --profile "$PROFILE" --scenes "$SCENES" --ledger .ledger/ledger.json --run-id "$STORYHOUSE_RUN_ID"
           bash scripts/ledger.sh push "reserve $STORYHOUSE_RUN_ID"
       - name: Rendern (kostenpflichtig)
-        run: python -m storyhouse render --profile "$PROFILE" --scenes "$SCENES" --ledger .ledger/ledger.json --run-id "$STORYHOUSE_RUN_ID" --out output/render
+        run: python -m storyhouse render --episode "$EPISODE" --profile "$PROFILE" --scenes "$SCENES" --ledger .ledger/ledger.json --run-id "$STORYHOUSE_RUN_ID" --out output/render
       # Prüft das bezahlte Ergebnis, blockiert aber nichts: das Geld ist ausgegeben, das Ergebnis wird
       # in jedem Fall verschlüsselt gesichert. Bericht nur auf der Laufseite, keine Videodaten.
       - name: Qualitätsprüfung (Länge, 9:16, Ton, Lautheit, Untertitel)
@@ -176,7 +185,7 @@ jobs:
         if: ${{ always() }}
         run: |
           if [ -f .ledger/ledger.json ]; then
-            python -m storyhouse finalize --profile "$PROFILE" --scenes "$SCENES" --ledger .ledger/ledger.json --run-id "$STORYHOUSE_RUN_ID" --out output/render
+            python -m storyhouse finalize --episode "$EPISODE" --profile "$PROFILE" --scenes "$SCENES" --ledger .ledger/ledger.json --run-id "$STORYHOUSE_RUN_ID" --out output/render
             bash scripts/ledger.sh push "finalize $STORYHOUSE_RUN_ID"
           fi
       - name: Ergebnisse verschlüsseln

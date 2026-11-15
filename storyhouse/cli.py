@@ -15,7 +15,7 @@ from pathlib import Path
 
 from storyhouse.budget import (
     ApprovalError, BudgetConfig, BudgetError, Ledger, Pricing, SpendGuard, check_affordable,
-    finalize, remaining_eur, require_paid_approval, require_paid_scope, reserve,
+    finalize, remaining_eur, require_paid_approval, require_paid_scope, require_scope_budget, reserve,
 )
 from storyhouse.episode import EpisodeError, load_episode
 from storyhouse.plan import build_plan, format_estimate
@@ -219,6 +219,8 @@ def _dispatch(args: argparse.Namespace) -> int:
 
     if args.cmd in ("preflight", "reserve", "render"):
         require_paid_scope(cfg, plan)
+    if args.cmd in ("preflight", "reserve"):
+        require_scope_budget(cfg, ledger, estimate_eur)
 
     if args.cmd == "preflight":
         require_paid_approval(cfg, approval, secrets=plan.required_secrets())
@@ -238,7 +240,8 @@ def _dispatch(args: argparse.Namespace) -> int:
         require_paid_approval(cfg, approval, secrets=plan.required_secrets())
         pricing.assert_paid_ready(plan.jobs)
         entry = reserve(args.run_id, estimate_eur, cfg, ledger,
-                        meta={"profile": args.profile, "scenes": plan.scenes, "jobs": len(plan.jobs)})
+                        meta={"profile": args.profile, "scenes": plan.scenes, "jobs": len(plan.jobs),
+                              "episode": plan.episode_slug})
         _summary(f"🔒 Reserviert: {entry['reserved_eur']:.2f} € für Lauf `{args.run_id}`")
         return 0
 

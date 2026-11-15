@@ -103,6 +103,11 @@ def build_plan(ep: Episode, pricing: Pricing, profile: str = "test", scenes: str
                include_music: bool = False) -> Plan:
     """include_music: Musik-Job (Eleven Music) aufnehmen – nur nach bestätigter Lizenzprüfung."""
     prof = pricing.profile(profile)
+    # Episode darf Bild-/Videomodell wählen (episode.yaml: models). Preise, verified-Prüfung, Budget- und
+    # Umfangsgrenzen gelten unverändert; das Profil (und damit die Kennzeichnung „privater Test“) bleibt.
+    for key, model in (ep.data.get("models") or {}).items():
+        if key in ("keyframe_model", "video_model"):
+            prof[key] = str(model)
     audio_provider = audio_provider or ep.audio_provider
     if audio_provider not in AUDIO_PROVIDERS:
         raise ValueError(f"Unbekannter Ton-Anbieter {audio_provider}")

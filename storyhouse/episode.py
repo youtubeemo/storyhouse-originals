@@ -259,7 +259,7 @@ def validate_episode(ep: Episode) -> None:
         last_at = at
         if not str(line.get("text", "")).strip():
             errors.append(f"{lid}: text fehlt")
-    if ep.dialogue and float(ep.dialogue[0]["at"]) > 1.0:
+    if ep.dialogue and fmt.get("hook_dialogue", True) and float(ep.dialogue[0]["at"]) > 1.0:
         errors.append("Hook: erste Dialogzeile muss innerhalb der ersten Sekunde starten")
 
     # Ton-Anbieter, Stimmen, Musik, Outro
@@ -287,6 +287,10 @@ def validate_episode(ep: Episode) -> None:
                 errors.append("outro.sting.prompt fehlt")
             if not 0.5 <= float(sting.get("duration", 0)) <= 30:
                 errors.append("outro.sting.duration muss 0.5–30 s sein")
+
+    for key in (d.get("models") or {}):
+        if key not in ("keyframe_model", "video_model"):
+            errors.append(f"models.{key}: nur keyframe_model und video_model sind je Episode wählbar")
 
     for sfx in ep.sound.get("sfx", []):
         if not 0 <= float(sfx["at"]) < ep.duration:

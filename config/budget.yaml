@@ -8,7 +8,10 @@
 # Freigegeben per PR durch die Produktion (14.11.2026) – NUR im Rahmen von paid_scope.
 # 15.11.2026 wieder auf false: Vorgabe „Bezahlte Filmproduktion bleibt deaktiviert, bis ich ausdrücklich
 # zustimme“. Für den nächsten S01-Test per PR wieder auf true setzen (paid_scope bleibt test/S01).
-paid_rendering_enabled: false
+# 15.11.2026 (zweiter PR): true NUR für das Testvideo „ETAGE 0 – Der verbotene Knopf“ – ausdrücklich
+# freigegeben mit höchstens 10 € Gesamtverbrauch (paid_scope.episodes + paid_scope.budget_eur).
+# Nach der Abnahme wieder auf false setzen.
+paid_rendering_enabled: true
 
 # Freigabeumfang: Nur diese Profile/Szenen/Tonquellen dürfen bezahlt gerendert
 # werden. Alles andere bricht im Preflight ab, BEVOR Geld fließt – egal was im
@@ -16,8 +19,13 @@ paid_rendering_enabled: false
 # nur per eigenem PR nach Abnahme des vorherigen Renders.
 paid_scope:
   profiles: [test]
-  scenes: [S01]
+  scenes: [S01, S02, S03, S04, S05]
   audio_providers: [elevenlabs]
+  # Nur diese Episode(n) dürfen bezahlt laufen – alle anderen brechen im Preflight ab.
+  episodes: [etage-0-der-verbotene-knopf]
+  # Obergrenze für ALLE bezahlten Läufe dieser Episode(n) zusammen (verbucht + reserviert + neuer Lauf
+  # inkl. 25 % Puffer). Ein zweiter Lauf, der darüber käme, wird verweigert.
+  budget_eur: 10.00
 
 currency: EUR
 
