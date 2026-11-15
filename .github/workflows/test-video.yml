@@ -42,6 +42,7 @@ on:
         options:
           - episodes/the-other-side/ep01-the-reflection
           - episodes/etage-0/ep01-der-verbotene-knopf
+          - episodes/etage-0/s01e01-der-verbotene-knopf
         default: episodes/the-other-side/ep01-the-reflection
       profile:
         description: "test = günstige Modelle, final = Endqualität"
@@ -54,6 +55,10 @@ on:
         default: S01
       preview:
         description: "Dry-Run in kleiner Auflösung (schneller)"
+        type: boolean
+        default: false
+      stills_only:
+        description: "Bild-Storyboard-Stufe: Referenzen, Keyframes und Ton, aber kein Video (günstig)"
         type: boolean
         default: false
       approval:
@@ -75,6 +80,7 @@ jobs:
       EPISODE: ${{ inputs.episode }}
       SCENES: ${{ inputs.scenes }}
       PREVIEW: ${{ inputs.preview }}
+      STILLS: ${{ inputs.stills_only && '--stills-only' || '' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -92,7 +98,7 @@ jobs:
         run: |
           extra=""
           if [ "$PREVIEW" = "true" ]; then extra="--preview"; fi
-          python -m storyhouse dry-run --episode "$EPISODE" --profile "$PROFILE" --scenes "$SCENES" --out output/dry-run $extra
+          python -m storyhouse dry-run --episode "$EPISODE" --profile "$PROFILE" --scenes "$SCENES" $STILLS --out output/dry-run $extra
       - name: Qualitätsprüfung Dry-Run (0 €)
         run: |
           set -o pipefail
@@ -133,6 +139,7 @@ jobs:
       PROFILE: ${{ inputs.profile }}
       EPISODE: ${{ inputs.episode }}
       SCENES: ${{ inputs.scenes }}
+      STILLS: ${{ inputs.stills_only && '--stills-only' || '' }}
       STORYHOUSE_APPROVAL: ${{ inputs.approval }}
       STORYHOUSE_RUN_ID: run-${{ github.run_id }}-${{ github.run_attempt }}
       RUNWAYML_API_SECRET: ${{ secrets.RUNWAYML_API_SECRET }}
@@ -158,22 +165,23 @@ jobs:
       - name: Tests
         run: pytest -q
       - name: Generalprobe (Dry-Run, 0 €)
-        run: python -m storyhouse dry-run --preview --episode "$EPISODE" --profile "$PROFILE" --scenes "$SCENES" --out output/rehearsal
+        run: python -m storyhouse dry-run --preview --episode "$EPISODE" --profile "$PROFILE" --scenes "$SCENES" $STILLS --out output/rehearsal
       - name: Ledger holen
         run: bash scripts/ledger.sh pull
       - name: Budgetstand
         run: python -m storyhouse budget-status --ledger .ledger/ledger.json
       - name: Preflight (Freigabe, Preise, Budget, Guthaben)
-        run: python -m storyhouse preflight --episode "$EPISODE" --profile "$PROFILE" --scenes "$SCENES" --ledger .ledger/ledger.json
+        run: python -m storyhouse preflight --episode "$EPISODE" --profile "$PROFILE" --scenes "$SCENES" $STILLS --ledger .ledger/ledger.json
       - name: Budget reservieren und sichern (vor jeder Ausgabe)
         run: |
-          python -m storyhouse reserve --episode "$EPISODE" --profile "$PROFILE" --scenes "$SCENES" --ledger .ledger/ledger.json --run-id "$STORYHOUSE_RUN_ID"
+          python -m storyhouse reserve --episode "$EPISODE" --profile "$PROFILE" --scenes "$SCENES" $STILLS --ledger .ledger/ledger.json --run-id "$STORYHOUSE_RUN_ID"
           bash scripts/ledger.sh push "reserve $STORYHOUSE_RUN_ID"
       - name: Rendern (kostenpflichtig)
-        run: python -m storyhouse render --episode "$EPISODE" --profile "$PROFILE" --scenes "$SCENES" --ledger .ledger/ledger.json --run-id "$STORYHOUSE_RUN_ID" --out output/render
+        run: python -m storyhouse render --episode "$EPISODE" --profile "$PROFILE" --scenes "$SCENES" $STILLS --ledger .ledger/ledger.json --run-id "$STORYHOUSE_RUN_ID" --out output/render
       # Prüft das bezahlte Ergebnis, blockiert aber nichts: das Geld ist ausgegeben, das Ergebnis wird
       # in jedem Fall verschlüsselt gesichert. Bericht nur auf der Laufseite, keine Videodaten.
       - name: Qualitätsprüfung (Länge, 9:16, Ton, Lautheit, Untertitel)
+        id: qc
         if: ${{ success() }}
         continue-on-error: true
         run: |
@@ -185,7 +193,7 @@ jobs:
         if: ${{ always() }}
         run: |
           if [ -f .ledger/ledger.json ]; then
-            python -m storyhouse finalize --episode "$EPISODE" --profile "$PROFILE" --scenes "$SCENES" --ledger .ledger/ledger.json --run-id "$STORYHOUSE_RUN_ID" --out output/render
+            python -m storyhouse finalize --episode "$EPISODE" --profile "$PROFILE" --scenes "$SCENES" $STILLS --ledger .ledger/ledger.json --run-id "$STORYHOUSE_RUN_ID" --out output/render
             bash scripts/ledger.sh push "finalize $STORYHOUSE_RUN_ID"
           fi
       - name: Ergebnisse verschlüsseln
@@ -216,3 +224,12 @@ jobs:
             output/render/LIZENZ_*.txt
           retention-days: 7
           if-no-files-found: ignore
+      # Ganz zum Schluss, NACHDEM Kosten verbucht und Ergebnisse gesichert sind: Ein Film, der die technische
+      # Prüfung nicht besteht, darf nicht als grüner „erfolgreicher“ Lauf erscheinen (Lauf 43724968662 war
+      # grün, obwohl der True Peak über dem Grenzwert lag). Die Prüfung ersetzt NICHT die Abnahme durch
+      # Ansehen und Anhören – siehe docs/PIPELINE_ANALYSE.md, „Abnahme“.
+      - name: Ergebnis der Qualitätsprüfung
+        if: ${{ always() && steps.qc.outcome == 'failure' }}
+        run: |
+          echo "::error::Technische Qualitätsprüfung nicht bestanden – Bericht siehe Zusammenfassung des Laufs."
+          exit 1

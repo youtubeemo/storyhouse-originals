@@ -13,6 +13,17 @@ EPS = 1e-6
 MAX_PROMPT_CHARS = 1000  # Runway-Limit für promptText
 AUDIO_PROVIDERS = ("elevenlabs", "runway")
 EL_VOICE_ID = re.compile(r"^[A-Za-z0-9]{20}$")
+MAX_REFS = 3                # Runway gen4_image: höchstens 3 Referenzbilder je Keyframe
+SPEECH_CHARS_PER_S = 13.0   # ruhiges Deutsch/Englisch; dieselbe Annahme nutzt der Dry-Run
+OVERLAY_STYLES = ("uhr", "nachricht", "anzeige", "titel")
+CONTINUITY_TAG = "vorher"   # Referenz-Tag des Keyframes der vorherigen Einstellung (match_previous)
+
+
+def speech_estimate_s(line: dict[str, Any]) -> float:
+    """Geschätzte Sprechdauer einer Dialogzeile (ohne Regie-Tags wie [whispers]); Pausen (… / ...) zählen mit."""
+    text = re.sub(r"\[[^\]]*\]", "", str(line.get("tts_text") or line.get("text", "")))
+    pauses = text.count("…") + text.count("...")
+    return round(len(" ".join(text.split())) / SPEECH_CHARS_PER_S + 0.4 * pauses, 2)
 
 
 class EpisodeError(ValueError):
@@ -52,6 +63,38 @@ class Episode:
     @property
     def locations(self) -> dict[str, Any]:
         return self.data.get("locations", {})
+
+    @property
+    def props(self) -> dict[str, Any]:
+        """Requisiten mit eigenem Referenzbild (z. B. Kopfhörer, Tür 008) – bleiben in jeder Einstellung gleich."""
+        return self.data.get("props", {})
+
+    @property
+    def language(self) -> str:
+        """Sprache der Dialoge (ISO 639-1). Standard 'en' (erste Produktion); deutsche Episoden setzen 'de'."""
+        return str(self.data.get("language", "en"))
+
+    @property
+    def overlays(self) -> list[dict[str, Any]]:
+        """Texteinblendungen im Bild (Uhrzeit, Handy-Nachricht, Etagenanzeige) – in der Nachbearbeitung
+        gesetzt, weil Bild-KI lesbaren Text nicht zuverlässig erzeugt."""
+        return self.data.get("overlays", [])
+
+    @property
+    def strict_timing(self) -> bool:
+        return bool(self.fmt.get("strict_timing", False))
+
+    def dialogue_slots(self) -> dict[str, float]:
+        """Verfügbare Zeit je Dialogzeile: bis kurz vor die nächste Zeile bzw. bis Filmende.
+        Zeilen mit allow_overlap (z. B. Stimmen hinter mehreren Türen) dürfen in die nächste hineinlaufen."""
+        lines = self.dialogue
+        slots: dict[str, float] = {}
+        for i, line in enumerate(lines):
+            end = self.duration
+            if not line.get("allow_overlap") and i + 1 < len(lines):
+                end = float(lines[i + 1]["at"]) - 0.10
+            slots[line["id"]] = max(0.3, min(end, self.duration) - float(line["at"]))
+        return slots
 
     @property
     def sound(self) -> dict[str, Any]:
@@ -150,6 +193,13 @@ class Episode:
         snd["sfx"] = [
             {**x, "at": remap(float(x["at"]))} for x in snd.get("sfx", []) if remap(float(x["at"])) is not None
         ]
+        data["overlays"] = [
+            {**o, "from": remap(float(o["from"])),
+             "to": round(remap(float(o["from"])) + float(o["to"]) - float(o["from"]), 3)}
+            for o in self.overlays if remap(float(o["from"])) is not None
+        ]
+        for d in snd.get("drones", []):
+            d.pop("until", None)  # Stems laufen in Teil-Episoden einfach bis zum Ende
         snd["silence_windows"] = [
             {"from": remap(float(w["from"])), "to": round(remap(float(w["from"])) + float(w["to"]) - float(w["from"]), 3)}
             for w in snd.get("silence_windows", []) if remap(float(w["from"])) is not None
@@ -159,12 +209,29 @@ class Episode:
     def ref_tags(self) -> set[str]:
         tags = {c["ref_tag"] for c in self.characters.values() if "ref_tag" in c}
         tags |= {loc["ref_tag"] for loc in self.locations.values() if "ref_tag" in loc}
+        tags |= {p["ref_tag"] for p in self.props.values() if "ref_tag" in p}
         return tags
+
+    def frozen_refs(self) -> dict[str, Path]:
+        """Abgenommene Referenzbilder der Serie: <Serienordner>/referenzen/<tag>.png (oder .jpg).
+
+        Liegt für einen Tag eine Datei vor, wird das Referenzbild NICHT neu erzeugt, sondern genau diese
+        Datei verwendet – in jedem Lauf und in jeder Episode. Nur so sieht Leon in Akt 6 und in Episode 2
+        garantiert aus wie in Akt 1 (ein neu generiertes Referenzbild ist nie exakt dasselbe)."""
+        folder = self.path.parent.parent / "referenzen"
+        out: dict[str, Path] = {}
+        for tag in sorted(self.ref_tags()):
+            for ext in ("png", "jpg", "jpeg"):
+                f = folder / f"{tag}.{ext}"
+                if f.is_file() and f.stat().st_size > 0:
+                    out[tag] = f
+                    break
+        return out
 
     def reference_sources(self) -> dict[str, str]:
         """ref_tag -> reference_prompt (je Tag genau eine Quelle)."""
         out: dict[str, str] = {}
-        for group in (self.characters, self.locations):
+        for group in (self.characters, self.locations, self.props):
             for item in group.values():
                 tag, prompt = item.get("ref_tag"), item.get("reference_prompt")
                 if tag and prompt and tag not in out:
@@ -221,11 +288,26 @@ def validate_episode(ep: Episode) -> None:
             if not text:
                 errors.append(f"{sid}: {k} fehlt")
             full = f"{text} {ep.global_style}" if k == "keyframe_prompt" else text
+            if k == "keyframe_prompt" and s.get("match_previous"):
+                full += " " * 140  # Platz für den Anschluss-Satz (plan.py)
             if len(full) > MAX_PROMPT_CHARS:
                 errors.append(f"{sid}: {k} inkl. Look zu lang ({len(full)} > {MAX_PROMPT_CHARS})")
         for tag in _tags_in(s.get("keyframe_prompt", "")):
             if tag not in tags:
                 errors.append(f"{sid}: unbekannter Referenz-Tag @{tag}")
+        used = list(dict.fromkeys(_tags_in(s.get("keyframe_prompt", ""))))
+        prev = s.get("match_previous")
+        if prev:
+            earlier = [x.get("id") for x in ep.scenes[: ep.scenes.index(s)]]
+            if prev not in earlier:
+                errors.append(f"{sid}: match_previous muss auf eine frühere Szene verweisen, nicht {prev}")
+            if CONTINUITY_TAG in used:
+                errors.append(f"{sid}: @{CONTINUITY_TAG} ist für match_previous reserviert")
+        if len(used) + (1 if prev else 0) > MAX_REFS:
+            errors.append(f"{sid}: höchstens {MAX_REFS} Referenzbilder je Keyframe (inkl. match_previous)")
+        for k in ("fade_in", "fade_out"):
+            if not 0 <= float(s.get(k, 0) or 0) <= dur / 2 + EPS:
+                errors.append(f"{sid}: {k} muss zwischen 0 und der halben Szenendauer liegen")
         for sfx in s.get("sfx", []) or []:
             if sfx not in sfx_ids:
                 errors.append(f"{sid}: SFX '{sfx}' nicht in sound_design.sfx definiert")
@@ -259,6 +341,14 @@ def validate_episode(ep: Episode) -> None:
         last_at = at
         if not str(line.get("text", "")).strip():
             errors.append(f"{lid}: text fehlt")
+    if ep.strict_timing:
+        # Jede Zeile muss OHNE Beschleunigen/Kürzen in ihr Zeitfenster passen – sonst klingt sie gehetzt
+        # oder wird abgeschnitten. Lieber hier scheitern (kostenlos) als nach dem bezahlten Render.
+        slots = ep.dialogue_slots()
+        for line in ep.dialogue:
+            if line.get("id") in slots and speech_estimate_s(line) > slots[line["id"]] + EPS:
+                errors.append(f"{line['id']}: ca. {speech_estimate_s(line):.1f} s Sprechzeit, aber nur "
+                              f"{slots[line['id']]:.1f} s bis zur nächsten Zeile – Text kürzen oder Zeit geben")
     if ep.dialogue and fmt.get("hook_dialogue", True) and float(ep.dialogue[0]["at"]) > 1.0:
         errors.append("Hook: erste Dialogzeile muss innerhalb der ersten Sekunde starten")
 
@@ -277,10 +367,17 @@ def validate_episode(ep: Episode) -> None:
         errors.append("sound_design.music.generate.prompt fehlt")
     outro = ep.data.get("outro") or {}
     if outro.get("enabled"):
-        if not 1.0 <= float(outro.get("duration_s", 0)) <= 6.0:
-            errors.append("outro.duration_s muss 1–6 s sein")
-        if not str(outro.get("title", "")).strip():
+        if not 1.0 <= float(outro.get("duration_s", 0)) <= 12.0:
+            errors.append("outro.duration_s muss 1–12 s sein")
+        if not str(outro.get("title", "")).strip() and not outro.get("rows"):
             errors.append("outro.title fehlt")
+        for i, row in enumerate(outro.get("rows") or []):
+            if not str(row.get("text", "")).strip():
+                errors.append(f"outro.rows[{i}]: text fehlt")
+            if not 0 <= float(row.get("y", 0.5)) <= 1 or not 0.01 <= float(row.get("size", 0.04)) <= 0.2:
+                errors.append(f"outro.rows[{i}]: y (0–1) oder size (0.01–0.2) ungültig")
+            if not 0 <= float(row.get("appear_at", 0)) < float(outro.get("duration_s", 0)):
+                errors.append(f"outro.rows[{i}]: appear_at liegt außerhalb der Karte")
         sting = outro.get("sting")
         if sting:
             if not str(sting.get("prompt", "")).strip():
@@ -292,6 +389,22 @@ def validate_episode(ep: Episode) -> None:
         if key not in ("keyframe_model", "video_model"):
             errors.append(f"models.{key}: nur keyframe_model und video_model sind je Episode wählbar")
 
+    if not re.fullmatch(r"[a-z]{2}", ep.language):
+        errors.append("language muss ISO 639-1 sein (z. B. de)")
+    for i, o in enumerate(ep.overlays):
+        a, b = float(o.get("from", -1)), float(o.get("to", -1))
+        if not 0 <= a < b <= ep.duration + EPS:
+            errors.append(f"overlays[{i}]: from/to müssen im Film liegen und from < to")
+        if not str(o.get("text", "")).strip():
+            errors.append(f"overlays[{i}]: text fehlt")
+        if o.get("style", "nachricht") not in OVERLAY_STYLES:
+            errors.append(f"overlays[{i}]: style muss einer von {OVERLAY_STYLES} sein")
+        if not (0 <= float(o.get("x", 0.5)) <= 1 and 0 <= float(o.get("y", 0.5)) <= 1):
+            errors.append(f"overlays[{i}]: x/y müssen zwischen 0 und 1 liegen")
+    for d in ep.sound.get("drones", []):
+        at, until = float(d.get("at", 0.0)), d.get("until")
+        if until is not None and not at < float(until) <= ep.duration + EPS:
+            errors.append(f"Stem {d['id']}: until muss nach at und im Film liegen")
     for sfx in ep.sound.get("sfx", []):
         if not 0 <= float(sfx["at"]) < ep.duration:
             errors.append(f"SFX {sfx['id']}: at außerhalb des Films")

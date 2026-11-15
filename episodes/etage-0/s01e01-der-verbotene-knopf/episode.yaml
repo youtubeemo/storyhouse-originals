@@ -1,0 +1,1297 @@
+# =====================================================================
+#  STORYHOUSE ORIGINALS
+#  ETAGE 0 – Staffel 1, Episode 1: DER VERBOTENE KNOPF (Serienfassung, ca. 3 Minuten)
+#  Film 168,0 s + Entscheidungskarte 8,0 s = 176,0 s (2:56) · 9:16 · 1080×1920 · Deutsch
+#
+#  Einzige Quelle für Drehbuch-Timing, Storyboard, Bild- und Tonplan:
+#    DREHBUCH.md   – die Geschichte zum Lesen (Ursachen, Konsequenzen, Dialog)
+#    STORYBOARD.md – wird aus DIESER Datei erzeugt (python -m storyhouse storyboard)
+#  NICHT zum bezahlten Rendern freigegeben (config/budget.yaml: paid_rendering_enabled: false,
+#  diese Episode steht nicht in paid_scope.episodes).
+# =====================================================================
+
+series: ETAGE 0
+season: 1
+episode: 1
+title: DER VERBOTENE KNOPF
+slug: etage-0-s01e01-der-verbotene-knopf
+language: de
+genre: mystery horror
+logline: >
+  02:17 Uhr. Leon rennt durch den Regen nach Hause, weil seine kleine Schwester Mia ihm eine
+  Sprachnachricht geschickt hat: Im Aufzug ist ein Knopf, der vorher nicht da war. Als er ankommt,
+  ist Mia weg – und der Knopf wartet auf ihn.
+
+format:
+  duration_s: 168.0
+  width: 1080
+  height: 1920
+  fps: 24
+  aspect: "9:16"
+  generation_ratio: "720:1280"
+  # Etwas leiser als ein Musikvideo: Horror braucht Abstand zwischen Stille und Schlag.
+  loudness_lufs: -15.0
+  true_peak_db: -1.0
+  hook_dialogue: false
+  # Jede Dialogzeile muss ohne Beschleunigen/Kürzen in ihr Zeitfenster passen (sonst Fehler bei validate).
+  strict_timing: true
+
+audio:
+  provider: elevenlabs
+
+models:
+  keyframe_model: gen4_image
+  video_model: gen4.5
+
+look:
+  global_style: >
+    Stylized 3D animated film still, high-end CGI feature animation, semi-realistic
+    stylized characters with detailed skin and cloth shading, physically based
+    rendering, volumetric light, shallow depth of field, cinematic low-key horror
+    lighting, wet reflective surfaces, palette of deep teal shadows, sodium amber
+    practical lights and saturated signal red, subtle film grain, vertical 9:16
+    composition, no subtitles, no captions, no watermark.
+  grade: "teal shadows, amber practicals, signal red accent"
+
+# ---------------------------------------------------------------------
+# FIGUREN – feste Referenzen. Jede Figur wird EINMAL als Referenzbild erzeugt und danach in jeder
+# Einstellung über ihren @tag eingebunden. Beschreibung nie pro Szene abwandeln.
+# ---------------------------------------------------------------------
+characters:
+  leon:
+    name: LEON
+    ref_tag: leon
+    description: >
+      Leon Brandt, 24. Schlank, kurze wirre dunkelbraune Haare, leichter Bartschatten, graugrüne Augen,
+      kleines Muttermal unter dem RECHTEN Auge. Dunkelgrüne Bomberjacke über grauem Kapuzenpulli,
+      schwarze Jeans, abgetragene weiße Sneaker, schwarzer Rucksack. Ab Szene 1 durchnässt.
+    reference_prompt: >
+      Full-body character model sheet of a slim 24-year-old man shown twice side by side, front view and
+      three-quarter view: short messy dark brown hair, light stubble, grey-green eyes, small mole under
+      his right eye, dark green bomber jacket over a grey hoodie, black jeans, worn white sneakers, black
+      backpack, neutral standing pose, neutral expression, plain dark grey studio background, even soft light.
+    voice:
+      model: eleven_v3
+      # ElevenLabs-Standardstimme „Liam“ (jung, klar). Besetzung vor dem Render per Hörprobe bestätigen.
+      voice_id: TX3LPaxmHKxFdv7VOQHJ
+      voice_name: Liam
+      stability: 0.5
+      preset_id: Noah
+      direction: "außer Atem, angespannt, nie theatralisch – Deutsch"
+  leon_alt:
+    name: DER ÄLTERE LEON
+    ref_tag: leon_alt
+    description: >
+      Derselbe Mann, etwa 35 Jahre älter: gleiche Nase, gleiche graugrüne Augen, dasselbe Muttermal
+      unter dem RECHTEN Auge. Graue Haare, grauer Bart, tiefe Falten. Dieselbe grüne Bomberjacke –
+      ausgeblichen, am Kragen aufgescheuert. Trocken. Bewegt sich ruhig, ohne Eile.
+    reference_prompt: >
+      Full-body character model sheet of a 60-year-old man shown twice side by side, front view and
+      three-quarter view, clearly the older version of a dark-haired young man: short grey hair, grey
+      beard stubble, same grey-green eyes, same small mole under his right eye, deep lines, faded worn
+      dark green bomber jacket with a frayed collar over a grey hoodie, black jeans, calm tired
+      expression, neutral standing pose, plain dark grey studio background, even soft light.
+    voice:
+      model: eleven_v3
+      voice_id: JBFqnCBsd6RMkjVDRZzb
+      voice_name: George
+      stability: 0.5
+      preset_id: Leslie
+      direction: "ruhig, müde, fast freundlich; kennt jeden Satz schon – Deutsch"
+      fx: flur_stimme
+  stimme:
+    name: DIE STIMME
+    description: "Körperlose Flüsterstimme im Aufzug. Nie zu sehen. Spricht nur, wenn der Knopf leuchtet."
+    voice:
+      model: eleven_v3
+      voice_id: N2lVS1w4EtoT3dr4eOWO
+      voice_name: Callum
+      stability: 0.5
+      preset_id: Leslie
+      direction: "eindringliches Flüstern, ganz nah am Ohr – Deutsch"
+      fx: fluester_stimme
+  mia:
+    name: MIA
+    description: >
+      Mia Brandt, 16, Leons Schwester. In Episode 1 nur zu hören (Sprachnachricht, hinter den Türen).
+      Erkennungszeichen: gelbe Kopfhörer.
+    voice:
+      model: eleven_v3
+      # ElevenLabs-Standardstimme „Jessica“ (jung). Besetzung vor dem Render per Hörprobe bestätigen.
+      voice_id: cgSgspJ2msm6clMCkdW9
+      voice_name: Jessica
+      stability: 0.5
+      preset_id: Maya
+      direction: "leise, versucht ruhig zu klingen, ist es nicht – Deutsch"
+      fx: sprachnachricht
+
+# ---------------------------------------------------------------------
+# ORTE – je ein Referenzbild, leer (ohne Figuren), damit Räume in jeder Einstellung gleich aussehen.
+# ---------------------------------------------------------------------
+locations:
+  strasse:
+    ref_tag: strasse
+    reference_prompt: >
+      Empty narrow city street at night in heavy rain, wet black asphalt with long reflections, a row of
+      sodium-vapour street lamps, parked cars, closed shop shutters, rain streaks in the lamp light, at
+      the end of the street an old eight-storey 1970s concrete apartment tower, no people.
+  hochhaus:
+    ref_tag: hochhaus
+    reference_prompt: >
+      Low-angle exterior of an old eight-storey 1970s concrete apartment tower at night in heavy rain,
+      rows of identical dark windows, weathered grey concrete with water stains, a glass entrance door
+      with a single flickering neon tube above it, only one window on the top floor faintly lit, no people.
+  foyer:
+    ref_tag: foyer
+    reference_prompt: >
+      Ground-floor entrance hall and stairwell of an old 1970s apartment tower at night, pale green wall
+      tiles, grey terrazzo floor, a concrete staircase with a steel railing winding upward, flickering
+      fluorescent tubes, a row of dented steel mailboxes, old steel elevator doors with a row of eight
+      small round indicator lamps above them, empty, no people.
+  aufzug:
+    ref_tag: aufzug
+    reference_prompt: >
+      Interior of a cramped old 1970s apartment-tower elevator cabin, scratched brushed-steel walls, one
+      wood-grain side panel, a steel handrail, a vertical column of eight round worn floor buttons with a
+      small blank black display above them, a ceiling light behind a yellowed plastic cover, closed
+      sliding steel doors, worn dark linoleum floor, empty, no people.
+  flur:
+    ref_tag: flur
+    reference_prompt: >
+      Endless dark apartment corridor in strict one-point perspective, bare concrete walls, worn dark
+      carpet, identical grey apartment doors on both sides repeating into darkness, a row of weak red
+      emergency lights on the ceiling fading into the distance, thin floor mist, empty, no people.
+
+# ---------------------------------------------------------------------
+# REQUISITEN – eigene Referenzbilder für alles, was wiedererkannt werden muss.
+# ---------------------------------------------------------------------
+props:
+  kopfhoerer:
+    ref_tag: kopfhoerer
+    reference_prompt: >
+      Product-style shot of a pair of bright yellow over-ear headphones with a small star sticker on the
+      left ear cup, slightly scuffed, lying on a dark surface, soft even light.
+  tuer008:
+    ref_tag: tuer008
+    reference_prompt: >
+      Front view of a plain grey apartment door in a concrete wall, a round brass doorknob, a peephole,
+      and a small rectangular brass number plate at eye level engraved with the three digits 008, weak
+      red light from above.
+
+# ---------------------------------------------------------------------
+# EINSTELLUNGEN (168,0 s) – jede baut auf der vorherigen auf (match_previous = Anschlussbild)
+# ---------------------------------------------------------------------
+scenes:
+  # ============================ AKT 1 – DIE STRASSE ============================
+  - id: S01
+    name: 02:17
+    act: "Akt 1 – Die Straße"
+    location: Straße, Regen
+    start: 0.0
+    duration: 3.0
+    render_duration: 3
+    beat: hook
+    shot: "Groß: Leons Gesicht im Lauf, er reißt den Kopf nach hinten"
+    camera: "Handkamera rückwärts vor ihm her, unruhig"
+    action: >
+      Blitz. Leon rennt durch strömenden Regen und sieht panisch über die Schulter zurück. Niemand
+      folgt ihm – er rennt nicht VOR etwas weg, sondern ZU etwas hin. Einblendung: 02:17.
+    transition: "Aufblitzen aus Schwarz mit dem Donner"
+    fade_in: 0.2
+    keyframe_prompt: >
+      Close-up of @leon running toward the camera through heavy night rain on @strasse, soaked hair
+      stuck to his forehead, mouth open, breathing hard, head turned back over his shoulder with wide
+      frightened eyes, amber street-lamp rim light, raindrops frozen in the air, blurred wet street behind him.
+    motion_prompt: >
+      A lightning flash lights the scene. The young man runs toward the camera through pouring rain,
+      glances back over his shoulder in panic, then faces forward again and keeps running. Shaky
+      handheld camera moving backward in front of him. Natural 3D character animation, stable face.
+    sfx: [donner_auftakt, schritte_rennen, atem_rennen]
+    music: "M1 Flucht: treibender tiefer Puls setzt mit dem Donner ein"
+
+  - id: S02
+    name: LEERE STRASSE
+    act: "Akt 1 – Die Straße"
+    location: Straße, Regen
+    start: 3.0
+    duration: 3.0
+    render_duration: 3
+    beat: setup
+    shot: "Totale von unten: menschenleere Straße, Leon klein, das Hochhaus am Ende"
+    camera: "tief über dem nassen Asphalt, statisch; Leon läuft auf uns zu"
+    action: >
+      Die Straße ist leer. Kein Auto, kein Mensch. Am Ende ragt das alte Hochhaus auf – dorthin rennt er.
+    transition: "harter Schnitt auf die Totale (Orientierung)"
+    match_previous: S01
+    keyframe_prompt: >
+      Wide low-angle shot from just above the wet asphalt of @strasse at night in heavy rain, the small
+      figure of @leon running toward the camera in the middle of the empty street, long reflections of
+      the street lamps, the dark apartment tower looming at the end of the street behind him.
+    motion_prompt: >
+      The young man runs toward the camera along the empty rainy street, splashing through puddles.
+      Rain falls heavily, lamp reflections shimmer on the asphalt. Static low camera. Natural running
+      motion, 3D animation.
+    sfx: [schritte_rennen]
+    music: "M1 Puls läuft weiter"
+
+  - id: S03
+    name: DIE SPRACHNACHRICHT
+    act: "Akt 1 – Die Straße"
+    location: Straße, Regen
+    start: 6.0
+    duration: 5.0
+    render_duration: 5
+    beat: setup
+    shot: "Nah über die Schulter: Handy in der nassen Hand, Leon wird langsamer"
+    camera: "Handkamera seitlich mitlaufend, dann zur Ruhe kommend"
+    action: >
+      Leon hält im Laufen das Handy ans Ohr, dann vor sich: Mias Sprachnachricht von 02:09 läuft noch
+      einmal. Er hat sie schon gehört – deshalb rennt er. Mia: Der Aufzug ist von allein gekommen.
+    transition: "Schnitt in die Bewegung"
+    keyframe_prompt: >
+      Over-the-shoulder close shot of @leon slowing from a run on @strasse in heavy rain, holding a
+      smartphone in his wet hand in front of his chest, the bright screen lighting his fingers and his
+      anxious face in profile, screen content out of focus, raindrops on the glass.
+    motion_prompt: >
+      The young man slows from a run to a fast walk, staring at the glowing phone in his hand, breathing
+      hard, rain running down his face. The handheld camera follows beside his shoulder and settles.
+      Natural 3D character animation, stable face.
+    sfx: [handy_ton, schritte_auslaufen]
+    music: "M1 Puls wird dünner, Platz für Mias Stimme"
+
+  - id: S04
+    name: VOR DEM HAUS
+    act: "Akt 1 – Die Straße"
+    location: Vor dem Hochhaus, Regen
+    start: 11.0
+    duration: 4.0
+    render_duration: 4
+    beat: setup
+    shot: "Halbnah: Leon bleibt unter der letzten Laterne stehen, sieht nach oben"
+    camera: "langsame Fahrt auf ihn zu"
+    action: >
+      Leon bleibt vor dem Haus stehen. Mias Nachricht läuft weiter: ein Knopf, der vorher nicht da war.
+      Er hebt den Blick zum obersten Stockwerk – dort wohnen sie.
+    transition: "harter Schnitt"
+    match_previous: S02
+    keyframe_prompt: >
+      Medium shot of @leon standing still under the last street lamp in front of the entrance of
+      @hochhaus in heavy rain, phone lowered in his hand, chest heaving, head tilted back looking up at
+      the top of the building, amber light from above, rain streaming down his jacket.
+    motion_prompt: >
+      The young man stands in the rain catching his breath and slowly raises his eyes up the building.
+      Slow camera push toward him. Rain pours through the lamp light. Subtle natural 3D animation,
+      stable face.
+    sfx: []
+    music: "M1 Puls fast weg – nur Regen und Stimme"
+
+  - id: S05
+    name: DAS FENSTER
+    act: "Akt 1 – Die Straße"
+    location: Fassade des Hochhauses
+    start: 15.0
+    duration: 5.0
+    render_duration: 5
+    beat: escalation
+    shot: "Leons Blick: Schwenk die Fassade hinauf zum einzigen erleuchteten Fenster im 8. Stock"
+    camera: "langsamer Schwenk nach oben, endet auf dem Fenster"
+    action: >
+      Alle Fenster dunkel – bis auf eines ganz oben. Dort steht reglos eine Gestalt und sieht herab.
+      Mia: „Ich drück ihn nicht. Komm bitte heim.“ Blitz – das Fenster ist leer und dunkel.
+    transition: "Blickachsen-Schnitt (wir sehen, was er sieht)"
+    keyframe_prompt: >
+      Steep low-angle view up the rain-streaked concrete facade of @hochhaus at night, every window
+      dark except one window on the top floor glowing dim amber, in it the small black silhouette of a
+      motionless standing person looking down, rain falling toward the camera, storm clouds above.
+    motion_prompt: >
+      The camera tilts slowly up the dark facade and settles on the single lit top-floor window with the
+      motionless silhouette. A bright lightning flash whites out the sky; afterwards the window is dark
+      and empty. Rain falls toward the lens. 3D animation.
+    sfx: [donner_fern, schock_figur]
+    music: "Stille im Score – einzelner hoher Ton, Stich auf den Blitz"
+
+  - id: S06
+    name: LOS
+    act: "Akt 1 – Die Straße"
+    location: Vor dem Hochhaus, Regen
+    start: 20.0
+    duration: 3.0
+    render_duration: 3
+    beat: escalation
+    shot: "Groß Leon: Schreck, dann Entschluss – er rennt zur Haustür"
+    camera: "statisch, er läuft aus dem Bild; Kamera reißt hinterher"
+    action: >
+      Leon hat die Gestalt gesehen. Er flüstert Mias Namen und sprintet zur Tür.
+    transition: "harter Schnitt zurück auf sein Gesicht"
+    match_previous: S04
+    keyframe_prompt: >
+      Close-up of @leon in heavy rain in front of @hochhaus, eyes wide and fixed upward, lips parted,
+      rainwater running over his face, amber lamp light from above, the glass entrance door with the
+      flickering neon tube out of focus behind him.
+    motion_prompt: >
+      The young man stares upward in shock, whispers one word, then bolts toward the entrance door
+      behind him. The camera whips around to follow him. Fast natural 3D character animation.
+    sfx: [sprint_tuer]
+    music: "M1 Puls kommt hart zurück"
+
+  # ============================ AKT 2 – DAS TREPPENHAUS ============================
+  - id: S07
+    name: DIE TÜR FÄLLT ZU
+    act: "Akt 2 – Das Treppenhaus"
+    location: Foyer / Treppenhaus
+    start: 23.0
+    duration: 4.0
+    render_duration: 4
+    beat: setup
+    shot: "Halbtotale: Leon steht tropfnass im Foyer, hinter ihm fällt die Tür ins Schloss"
+    camera: "statisch, leicht untersichtig"
+    action: >
+      Die schwere Tür knallt zu – der Regen ist schlagartig nur noch dumpf zu hören. Neonröhren
+      flackern. Wasser läuft von Leons Jacke auf die Fliesen. Das Haus ist zu still.
+    transition: "harter Schnitt MIT dem Türknall (Ton schneidet den Regen ab)"
+    keyframe_prompt: >
+      Medium-wide shot of @leon standing just inside the entrance of @foyer, soaked, water dripping
+      from his jacket and hair onto the terrazzo floor, the heavy glass door closed behind him with
+      rain running down it, flickering green-white fluorescent light, he listens, tense.
+    motion_prompt: >
+      The door behind the young man swings shut. He stands still, dripping, breathing hard, and looks
+      around the empty hall as the fluorescent tubes flicker. Water drips steadily from his sleeves.
+      Static camera. Subtle natural 3D animation.
+    sfx: [tuer_zu, neon_flackern, tropfen]
+    music: "M1 bricht mit dem Türknall ab – nur Raumton"
+
+  - id: S08
+    name: MIA?
+    act: "Akt 2 – Das Treppenhaus"
+    location: Foyer / Treppenhaus
+    start: 27.0
+    duration: 3.0
+    render_duration: 3
+    beat: setup
+    shot: "Detail: Tropfen schlagen auf die Fliesen, dann Leons Gesicht nach oben gewandt"
+    camera: "Schärfe wandert vom Boden zu seinem Gesicht"
+    action: >
+      Leon ruft ins Treppenhaus hinauf nach Mia. Nur sein eigenes Echo antwortet.
+    transition: "harter Schnitt ins Detail"
+    match_previous: S07
+    keyframe_prompt: >
+      Low close shot inside @foyer: water drops hitting the terrazzo floor beside the wet white sneakers
+      of @leon in sharp focus, his face above out of focus, turned upward toward the staircase,
+      flickering fluorescent light, small puddle spreading.
+    motion_prompt: >
+      Drops fall and splash on the floor. Focus racks up to the young man's face as he calls a name up
+      the stairwell and waits, listening. Static camera. Natural 3D animation.
+    sfx: [tropfen]
+    music: "kein Score"
+
+  - id: S09
+    name: SCHRITTE VON OBEN
+    act: "Akt 2 – Das Treppenhaus"
+    location: Treppenhaus, Blick nach oben
+    start: 30.0
+    duration: 5.0
+    render_duration: 5
+    beat: escalation
+    shot: "Leons Blick senkrecht nach oben durch das Treppenauge, acht Stockwerke"
+    camera: "sehr langsame Drehung um die Achse"
+    action: >
+      Von ganz oben: langsame Schritte. Ein Schatten gleitet am Geländer des obersten Stockwerks
+      entlang. Dann geht dort oben das Licht aus.
+    transition: "Blickachsen-Schnitt"
+    keyframe_prompt: >
+      View straight up the rectangular stairwell shaft of @foyer, eight floors of steel railings
+      spiralling upward into darkness, dim fluorescent light on each landing, on the top landing the
+      vague dark shape of a person moving along the railing, dust in the light.
+    motion_prompt: >
+      The camera rotates very slowly while looking straight up the stairwell. High above, a shadow
+      glides along the top railing and stops. The light on the top landing goes out. 3D animation,
+      eerie and slow.
+    sfx: [schritte_oben, licht_aus_klack]
+    music: "M2 Haus: dünner, gläserner Dauerton, kaum hörbar"
+
+  - id: S10
+    name: DER AUFZUG KOMMT
+    act: "Akt 2 – Das Treppenhaus"
+    location: Foyer, vor dem Aufzug
+    start: 35.0
+    duration: 5.0
+    render_duration: 5
+    beat: escalation
+    shot: "Über Leons Schulter: die acht Lämpchen über der Aufzugtür wandern von selbst nach unten"
+    camera: "langsame Fahrt auf die Lämpchen, dann Türen"
+    action: >
+      Niemand hat den Aufzug gerufen. Trotzdem wandert das Licht von Lampe 8 Stockwerk für Stockwerk
+      nach unten. Gong. Die Türen gehen auf.
+    transition: "Schnitt auf Geräusch (Aufzugmotor setzt ein, Leon dreht sich um)"
+    match_previous: S07
+    keyframe_prompt: >
+      Over-the-shoulder shot from behind @leon in @foyer facing the old steel elevator doors, above the
+      doors a horizontal row of eight small round indicator lamps with only the leftmost lamp lit
+      amber, his wet shoulder and ear in the foreground, flickering fluorescent light.
+    motion_prompt: >
+      The single lit lamp in the row above the elevator doors moves one lamp at a time across the row
+      until the last lamp glows. The steel doors slide open by themselves, spilling flickering yellow
+      light onto the young man. Slow camera push. 3D animation.
+    sfx: [aufzug_kommt, aufzug_gong, tueren_auf]
+    music: "M2 Dauerton bleibt"
+
+  - id: S11
+    name: DIE KOPFHÖRER
+    act: "Akt 2 – Das Treppenhaus"
+    location: Aufzugkabine, von außen
+    start: 40.0
+    duration: 6.0
+    render_duration: 6
+    beat: reveal
+    shot: "Leons Blick in die leere Kabine; auf dem Boden: Mias gelbe Kopfhörer. Er tritt ein, hebt sie auf"
+    camera: "langsame Fahrt in die Kabine hinein, dann nach unten"
+    action: >
+      Die Kabine ist leer. Auf dem Boden liegen Mias gelbe Kopfhörer. Sie war hier. Leon tritt ein und
+      hebt sie auf. Die Schritte von oben hören auf.
+    transition: "Blickachsen-Schnitt; weiche Tonbrücke (Kabinenbrummen beginnt)"
+    match_previous: S10
+    keyframe_prompt: >
+      View into the empty open cabin of @aufzug from outside, flickering yellow ceiling light, on the
+      dark linoleum floor in the middle of the cabin lies @kopfhoerer, the wet sleeve and hand of a man
+      reaching in from the foreground edge of the frame.
+    motion_prompt: >
+      The camera glides slowly into the empty elevator cabin and tilts down to the yellow headphones on
+      the floor. A wet hand reaches in and picks them up. The ceiling light flickers. Slow, tense 3D
+      animation.
+    sfx: [schritt_kabine]
+    music: "M2 Dauerton endet – Stille bis auf das Kabinenbrummen"
+
+  # ============================ AKT 3 – DER AUFZUG ============================
+  - id: S12
+    name: STOCKWERK 8
+    act: "Akt 3 – Der Aufzug"
+    location: Aufzugkabine
+    start: 46.0
+    duration: 3.0
+    render_duration: 3
+    beat: setup
+    shot: "Detail: Leons Finger drückt den obersten der acht Knöpfe"
+    camera: "statisch, Makro"
+    action: >
+      Leon drückt 8 – nach Hause. Der Knopf klickt. Nichts passiert.
+    transition: "harter Schnitt ins Detail"
+    match_previous: S11
+    keyframe_prompt: >
+      Extreme close-up inside @aufzug of the wet index finger of @leon pressing the topmost button of
+      the vertical column of eight round worn steel buttons, a small blank black display above the
+      column, yellow light, shallow depth of field.
+    motion_prompt: >
+      The wet finger presses the top button firmly and releases it. The button does not light up.
+      Nothing happens. A drop of water runs down the steel panel. Static macro shot, 3D animation.
+    sfx: [taste_klick_8]
+    music: "kein Score – nur Kabinenbrummen"
+
+  - id: S13
+    name: KOMM SCHON
+    act: "Akt 3 – Der Aufzug"
+    location: Aufzugkabine
+    start: 49.0
+    duration: 4.0
+    render_duration: 4
+    beat: escalation
+    shot: "Halbnah Leon, Kopfhörer in der Linken, drückt wieder; die Türen knallen von selbst zu"
+    camera: "leichte Handkamera, Ruck bei den Türen"
+    action: >
+      Leon drückt noch zweimal, ungeduldig. Keine Reaktion. Dann schlagen die Türen von selbst zu.
+    transition: "harter Schnitt"
+    keyframe_prompt: >
+      Medium shot of @leon inside @aufzug, soaked, holding @kopfhoerer in his left hand, right hand
+      jabbing at the button panel, jaw tight, glancing at the still-open doors beside him, flickering
+      yellow ceiling light.
+    motion_prompt: >
+      The young man presses the button twice, impatient, mutters, looks at the open doors. The steel
+      doors suddenly slam shut by themselves and he flinches. Slight handheld shake. Natural 3D
+      character animation, stable face.
+    sfx: [taste_klick_8b, tueren_zu_knall]
+    music: "kein Score"
+
+  - id: S14
+    name: DAS LICHT GEHT AUS
+    act: "Akt 3 – Der Aufzug"
+    location: Aufzugkabine
+    start: 53.0
+    duration: 4.0
+    render_duration: 4
+    beat: escalation
+    shot: "Untersicht: Deckenlampe flackert heftig, Leon darunter – dann vollständig dunkel"
+    camera: "statisch"
+    action: >
+      Das Licht flackert, zuckt, erlischt. Schwarz. Eine Sekunde lang ist gar nichts zu hören.
+      Dann nur Leons Atem.
+    transition: "Abblende ins Schwarz MIT dem Licht (kein Schnitt)"
+    fade_out: 1.4
+    match_previous: S13
+    keyframe_prompt: >
+      Low-angle shot inside @aufzug looking up past the shoulder of @leon at the ceiling light behind
+      its yellowed plastic cover, the light half dead and flickering, harsh shadows on his upturned
+      wet face, the cabin walls falling into darkness.
+    motion_prompt: >
+      The ceiling light flickers violently, buzzes, flares once and dies. The cabin goes completely
+      dark. The young man looks up and around. Static camera, 3D animation.
+    sfx: [licht_flackern_aus, atem_dunkel]
+    music: "STILLE (0,8 s alles stumm), danach nur Atem"
+
+  - id: S15
+    name: DIE TASTE
+    act: "Akt 3 – Der Aufzug"
+    location: Aufzugkabine, dunkel
+    start: 57.0
+    duration: 4.0
+    render_duration: 4
+    beat: reveal
+    shot: "Nah: im Dunkeln glimmt unter dem untersten Knopf eine Taste rot auf – 0. Rotes Licht auf Leons Gesicht"
+    camera: "sehr langsame Fahrt auf die Taste"
+    action: >
+      Unter dem untersten Knopf, wo eben nur Stahl war, beginnt eine Taste rot zu pulsieren: 0.
+      Genau der Knopf aus Mias Nachricht.
+    transition: "Aufblende aus dem Schwarz durch das rote Licht"
+    fade_in: 1.0
+    keyframe_prompt: >
+      Dark interior of @aufzug lit only by one extra round button glowing saturated red at the very
+      bottom of the button column, engraved with a single zero, the red glow falling on the lower half
+      of the face of @leon who stares down at it, everything else black.
+    motion_prompt: >
+      In the darkness the lowest round button slowly fades up and pulses red like a heartbeat. The red
+      light spreads over the young man's face as he looks down at it. Very slow push toward the button.
+      3D animation.
+    sfx: [taste_glimmen, herzschlag_langsam]
+    music: "M3 Knopf: tiefer Sub-Drone setzt mit dem Glimmen ein"
+
+  - id: S16
+    name: DIE WARNUNG
+    act: "Akt 3 – Der Aufzug"
+    location: Aufzugkabine, rotes Licht
+    start: 61.0
+    duration: 7.0
+    render_duration: 7
+    beat: escalation
+    shot: "Groß Leon von vorn, rot von unten beleuchtet; er fährt herum – niemand"
+    camera: "kaum merkliche Handkamera, langsamer Zoom"
+    action: >
+      Direkt an seinem Ohr flüstert eine Stimme: „Drück sie nicht, Leon.“ Er fährt herum – die Kabine
+      ist leer. Er fragt ins Dunkel: „Wo ist meine Schwester?“
+    transition: "harter Schnitt auf sein Gesicht"
+    match_previous: S15
+    keyframe_prompt: >
+      Close-up of @leon inside dark @aufzug lit from below by pulsing red light, eyes wide, head half
+      turned as if someone whispered right behind his ear, visible breath, nobody else in the cabin,
+      deep black shadows.
+    motion_prompt: >
+      The young man freezes, then jerks his head around to look behind him; nobody is there. He turns
+      back toward the red glow, breathing fast, and speaks one short sentence into the dark. Slow zoom
+      in, subtle handheld sway. Natural 3D character animation, stable face.
+    sfx: [fluestern_hauch]
+    music: "M3 Drone, Herzschlag langsam darunter"
+
+  - id: S17
+    name: UNTEN
+    act: "Akt 3 – Der Aufzug"
+    location: Aufzugkabine, rotes Licht
+    start: 68.0
+    duration: 5.0
+    render_duration: 5
+    beat: escalation
+    shot: "Makro: die rote 0 pulsiert im Takt des Herzschlags"
+    camera: "statisch, minimaler Zug nach vorn"
+    action: >
+      Die Stimme antwortet mit einem einzigen Wort: „Unten.“ Die Taste pulsiert schneller.
+      Jetzt hat Leon keinen Grund mehr, auf die Warnung zu hören.
+    transition: "harter Schnitt ins Detail"
+    match_previous: S15
+    keyframe_prompt: >
+      Extreme macro close-up of a single round elevator button glowing saturated red in the dark,
+      engraved with a single zero, scratched steel plate around it catching the red light, a faint
+      reflection of a face in the steel, shallow depth of field.
+    motion_prompt: >
+      The red button pulses brighter and darker in a slow heartbeat rhythm that gradually speeds up.
+      Tiny dust particles drift through the red light. Almost static macro shot with a very slow push
+      in. 3D animation.
+    sfx: [herzschlag_schnell]
+    music: "M3 Drone steigt an"
+
+  - id: S18
+    name: ER DRÜCKT
+    act: "Akt 3 – Der Aufzug"
+    location: Aufzugkabine, rotes Licht
+    start: 73.0
+    duration: 5.0
+    render_duration: 5
+    beat: turning_point
+    shot: "Nah: Leons Hand zittert, in der anderen die Kopfhörer; der Finger drückt die 0"
+    camera: "Fahrt von den Kopfhörern zur Hand zur Taste"
+    action: >
+      Leon sieht auf Mias Kopfhörer in seiner Hand. Dann drückt er die 0. Ein schweres Klacken –
+      und für einen Atemzug ist alles vollkommen still.
+    transition: "harter Schnitt; Szene endet in völliger Stille (0,7 s)"
+    keyframe_prompt: >
+      Close shot inside dark red-lit @aufzug: the left hand of @leon gripping @kopfhoerer tightly in
+      the foreground, his trembling right index finger hovering a centimetre above the glowing red
+      round button at the bottom of the panel, his tense face out of focus behind.
+    motion_prompt: >
+      The camera moves from the yellow headphones in his fist to his trembling finger. He hesitates,
+      then presses the red button all the way in. The red light holds steady. Tense, precise 3D
+      animation.
+    sfx: [taste_klick_0]
+    music: "M3 bricht mit dem Klacken ab – STILLE"
+
+  # ============================ AKT 4 – DER ABSTURZ ============================
+  - id: S19
+    name: DER RUCK
+    act: "Akt 4 – Der Absturz"
+    location: Aufzugkabine, rotes Licht
+    start: 78.0
+    duration: 4.0
+    render_duration: 4
+    beat: escalation
+    shot: "Halbtotale: der Aufzug sackt weg, Leon wird gegen die Wand geschleudert"
+    camera: "Handkamera, starker Ruck, gekippter Horizont"
+    action: >
+      Der Aufzug ruckt und fällt. Leon prallt gegen die Wand und klammert sich an den Handlauf.
+      Alles Licht ist rot.
+    transition: "Schnitt AUS der Stille mit dem Ruck (härtester Tonschnitt des Films)"
+    keyframe_prompt: >
+      Tilted medium-wide shot inside @aufzug flooded with red light, @leon thrown against the steel
+      wall, one hand clutching the handrail, the other clutching @kopfhoerer to his chest, dust
+      shaking down from the ceiling, motion blur, fear on his face.
+    motion_prompt: >
+      The elevator drops. The young man is thrown against the wall and grabs the handrail, the whole
+      cabin shakes violently, dust falls, the red light strobes. Violent handheld camera shake with a
+      tilted horizon. Dynamic 3D animation.
+    sfx: [aufzug_ruck, abfahrt_grollen]
+    music: "M4 Absturz: Grollen + ansteigender Ton"
+
+  - id: S20
+    name: MINUS
+    act: "Akt 4 – Der Absturz"
+    location: Aufzugkabine, Anzeige
+    start: 82.0
+    duration: 4.0
+    render_duration: 4
+    beat: escalation
+    shot: "Detail: die kleine Anzeige über den Knöpfen zählt ins Negative (Ziffern als Einblendung)"
+    camera: "statisch, fest verriegelt (Ziffern werden in der Nachbearbeitung eingesetzt)"
+    action: >
+      Die Anzeige springt an: 0 … −1 … −2 … immer schneller bis −8. Es gibt in diesem Haus keinen Keller.
+    transition: "harter Schnitt ins Detail"
+    keyframe_prompt: >
+      Locked-off extreme close-up of a small rectangular glossy black display set into the scratched
+      steel panel of an old elevator, the display switched off and completely blank, filling the centre
+      of the frame, red light flickering across the steel, dust falling past.
+    motion_prompt: >
+      Completely static locked-off shot. The blank black display stays in exactly the same place while
+      red light flickers and strobes over the steel panel and fine dust falls past. Slight vibration of
+      the dust only. 3D animation.
+    sfx: [metall_kreischen]
+    music: "M4 steigt weiter"
+
+  - id: S21
+    name: DEINE EIGENE NUMMER
+    act: "Akt 4 – Der Absturz"
+    location: Aufzugkabine, rotes Licht
+    start: 86.0
+    duration: 5.0
+    render_duration: 5
+    beat: reveal
+    shot: "Nah Leon: das Handy vibriert, der Bildschirm leuchtet sein Gesicht kalt von unten an"
+    camera: "Handkamera, zitternd"
+    action: >
+      Mitten im Fall vibriert Leons Handy. Absender: seine eigene Nummer. „DU HAST ES WIEDER GETAN.“
+      Er versteht es nicht – der Zuschauer ahnt: Das hier passiert nicht zum ersten Mal.
+    transition: "harter Schnitt"
+    match_previous: S19
+    keyframe_prompt: >
+      Close shot of @leon braced in a corner of shaking red-lit @aufzug, staring down at the smartphone
+      in his hand, the cold white-blue screen light on his face fighting the red light, disbelief in
+      his eyes, screen content not visible.
+    motion_prompt: >
+      The phone in his hand buzzes and lights up. The young man looks down at it, reads, and his
+      expression turns from fear to confusion; he says one short sentence. The cabin shakes around
+      him. Shaky handheld camera. Natural 3D character animation, stable face.
+    sfx: [handy_vibration]
+    music: "M4 kurz gedämpft unter der Nachricht"
+
+  - id: S22
+    name: AUFPRALL
+    act: "Akt 4 – Der Absturz"
+    location: Aufzugkabine
+    start: 91.0
+    duration: 5.0
+    render_duration: 5
+    beat: climax
+    shot: "Totale von oben in die Kabine: Funken, die Lampe platzt, dann der Halt – Leon fällt auf die Knie"
+    camera: "Aufsicht, heftiges Schütteln, dann absolut ruhig"
+    action: >
+      Das Schütteln erreicht den Höhepunkt, die Lampe platzt, Funken. Dann stoppt der Aufzug mit einem
+      Schlag. Leon fällt auf die Knie. Staub schwebt. Stille.
+    transition: "harter Schnitt; endet in Stille"
+    keyframe_prompt: >
+      High-angle shot looking down into red-lit @aufzug, @leon on his knees on the linoleum floor,
+      one hand on the wall, sparks raining from the broken ceiling light, thick dust in the air,
+      @kopfhoerer still clutched in his hand.
+    motion_prompt: >
+      The cabin shakes at its worst, sparks burst from the ceiling light, then the elevator slams to
+      a dead stop and the young man drops to his knees. Everything goes still; dust drifts slowly
+      down through the red light. 3D animation.
+    sfx: [lampe_platzt, aufprall_stopp, tinnitus]
+    music: "M4 reißt mit dem Aufprall ab – STILLE (0,8 s)"
+
+  - id: S23
+    name: NULL
+    act: "Akt 4 – Der Absturz"
+    location: Aufzugkabine, Anzeige
+    start: 96.0
+    duration: 3.0
+    render_duration: 3
+    beat: reveal
+    shot: "Detail Anzeige: 0 (Einblendung). Falscher, zu tiefer Gong"
+    camera: "statisch, fest verriegelt"
+    action: >
+      Die Anzeige zeigt nicht −8. Sie zeigt 0. Ein Gong, tiefer und langsamer als oben.
+    transition: "harter Schnitt ins Detail"
+    match_previous: S20
+    keyframe_prompt: >
+      Locked-off extreme close-up of the same small rectangular glossy black display in the scratched
+      steel elevator panel, switched off and completely blank, steady dim red light, settled dust on
+      the steel, perfectly still.
+    motion_prompt: >
+      Completely static locked-off shot. Nothing moves except a few dust particles settling through the
+      steady red light. 3D animation.
+    sfx: [gong_falsch]
+    music: "Stille, nur der Gong"
+
+  # ============================ AKT 5 – ETAGE 0 ============================
+  - id: S24
+    name: DIE TÜREN ÖFFNEN SICH
+    act: "Akt 5 – Etage 0"
+    location: Aufzugkabine → Flur
+    start: 99.0
+    duration: 6.0
+    render_duration: 6
+    beat: reveal
+    shot: "Über Leons Schulter: die Türen gleiten auf – ein endloser dunkler Flur"
+    camera: "langsame Fahrt vorwärts an seiner Schulter vorbei"
+    action: >
+      Die Türen öffnen sich. Kein Keller: ein Wohnungsflur wie oben im achten Stock – nur ohne Ende.
+      Rote Notlichter verlieren sich in der Ferne. Kalte Luft.
+    transition: "harter Schnitt; M5 setzt mit dem Türspalt ein"
+    keyframe_prompt: >
+      Over-the-shoulder shot from behind @leon kneeling up inside a dark steel elevator whose doors
+      stand half open onto @flur, the endless corridor stretching away in one-point perspective, red
+      emergency lights fading into darkness, mist drifting in over the threshold.
+    motion_prompt: >
+      The elevator doors slide fully open. Cold mist drifts into the cabin. The young man gets to his
+      feet. The camera glides slowly forward past his shoulder into the endless red-lit corridor.
+      Slow, ominous 3D animation.
+    sfx: [tueren_auf_langsam, flur_luft]
+    music: "M5 Etage 0: kalte dunkle Fläche, ferne Stimmen-Töne"
+
+  - id: S25
+    name: DER FLUR
+    act: "Akt 5 – Etage 0"
+    location: Flur, Etage 0
+    start: 105.0
+    duration: 4.0
+    render_duration: 4
+    beat: setup
+    shot: "Seitliche Fahrt: Leon geht langsam den Flur entlang, Tür an Tür"
+    camera: "Fahrt parallel zu ihm, auf Schulterhöhe"
+    action: >
+      Leon tritt hinaus. Links und rechts dieselbe graue Tür, immer wieder.
+    transition: "harter Schnitt in die Bewegung"
+    keyframe_prompt: >
+      Side tracking shot of @leon walking slowly along @flur, soaked, @kopfhoerer hanging from his
+      hand, passing identical grey apartment doors, red emergency light from above, mist around his
+      ankles, the open elevator glowing faintly far behind him.
+    motion_prompt: >
+      The young man walks slowly and cautiously down the corridor, looking at the doors he passes. The
+      camera tracks beside him at shoulder height. Mist swirls around his feet. Natural 3D walking
+      animation, stable face.
+    sfx: [schritte_flur]
+    music: "M5 Fläche"
+
+  - id: S26
+    name: "008"
+    act: "Akt 5 – Etage 0"
+    location: Flur, Etage 0
+    start: 109.0
+    duration: 3.0
+    render_duration: 3
+    beat: reveal
+    shot: "Detail: Türschild 008 – Schärfe springt zur nächsten Tür: 008 – und zur nächsten: 008"
+    camera: "statisch, zwei Schärfeverlagerungen in die Tiefe"
+    action: >
+      Jede Tür trägt dieselbe Nummer: 008. Die Nummer von Leons und Mias Wohnung.
+    transition: "harter Schnitt ins Detail"
+    keyframe_prompt: >
+      Close-up of the brass number plate of @tuer008 in sharp focus in the foreground, engraved with
+      the digits 008, behind it along @flur a row of identical grey doors each with the same small
+      brass plate receding out of focus into the red-lit darkness.
+    motion_prompt: >
+      Focus racks from the brass number plate in the foreground to the identical plate on the next
+      door, then to the one after it. Red emergency light flickers once. Static camera, 3D animation.
+    sfx: [neon_rot_summen]
+    music: "M5 Fläche, ein kalter hoher Ton auf die dritte 008"
+
+  - id: S27
+    name: STIMMEN HINTER DEN TÜREN
+    act: "Akt 5 – Etage 0"
+    location: Flur, Etage 0
+    start: 112.0
+    duration: 7.0
+    render_duration: 7
+    beat: escalation
+    shot: "Nah Leon im Profil, Ohr dicht an einer Tür; er weicht zurück, dreht sich zur Tür gegenüber"
+    camera: "langsame halbe Kreisfahrt um ihn"
+    action: >
+      Hinter der Tür: Mias Stimme. „Leon? Bist du das?“ Dann derselbe Satz hinter der Tür gegenüber.
+      Und hinter der nächsten. Dieselbe Stimme, leicht versetzt. Leon weicht in die Flurmitte zurück.
+    transition: "harter Schnitt"
+    keyframe_prompt: >
+      Close profile shot of @leon in @flur leaning his ear toward the grey door of @tuer008, eyes
+      wide, one hand flat on the door beside the brass plate, red emergency light from above, mist,
+      more identical doors behind him out of focus.
+    motion_prompt: >
+      The young man listens at the door, then jerks back from it, turns his head to the door on the
+      opposite side, then to the next one, backing into the middle of the corridor. The camera arcs
+      slowly around him. Natural 3D character animation, stable face.
+    sfx: [tuer_kratzen]
+    music: "M5 Fläche wird dissonant"
+
+  # ============================ AKT 6 – DIE BEGEGNUNG ============================
+  - id: S28
+    name: JEMAND KOMMT
+    act: "Akt 6 – Die Begegnung"
+    location: Flur, Etage 0
+    start: 119.0
+    duration: 4.0
+    render_duration: 4
+    beat: escalation
+    shot: "Totale in die Tiefe: weit hinten öffnet sich eine Tür, eine Silhouette tritt in den Flur"
+    camera: "statisch, Zentralperspektive"
+    action: >
+      Weit hinten öffnet sich eine der Türen. Ein Mann tritt heraus und kommt ohne Eile näher.
+      Er trägt Leons Jacke.
+    transition: "Schnitt auf Geräusch (Tür quietscht)"
+    keyframe_prompt: >
+      Wide one-point-perspective shot down @flur from behind the dark shoulder of @leon in the
+      foreground, far away a single door stands open spilling pale light across the corridor, in
+      front of it the small backlit silhouette of a man standing still, mist on the floor.
+    motion_prompt: >
+      Far down the corridor a door swings open and a backlit figure steps out, pauses, then walks
+      slowly and steadily toward the camera. The red emergency lights flicker as he passes under
+      them. Static camera, 3D animation.
+    sfx: [tuer_quietschen, schritte_alt]
+    music: "M5 Fläche, tiefer Einzelton"
+
+  - id: S29
+    name: DER ÄLTERE MANN
+    act: "Akt 6 – Die Begegnung"
+    location: Flur, Etage 0
+    start: 123.0
+    duration: 6.0
+    render_duration: 6
+    beat: reveal
+    shot: "Über Leons Schulter (von hinten): der ältere Mann bleibt im roten Licht stehen – Gesicht im Halbschatten"
+    camera: "langsame Fahrt auf den älteren Mann"
+    action: >
+      Der Mann bleibt drei Schritte vor Leon stehen. Dieselbe Jacke, ausgeblichen. Er wirkt nicht
+      überrascht. „Diesmal warst du schnell.“ – Leon: „Wer sind Sie?“
+    transition: "harter Schnitt; Schuss über Leons Schulter (Leons Mund nicht im Bild)"
+    keyframe_prompt: >
+      Over-the-shoulder shot from behind @leon in @flur facing @leon_alt who has stopped three steps
+      away under a red emergency light, the older man's face half in shadow, hands at his sides, calm,
+      faded jacket, mist between them.
+    motion_prompt: >
+      The older man comes to a stop, looks at the young man calmly and tilts his head slightly. The
+      young man's shoulders tense. Slow push toward the older man's shadowed face. Subtle natural 3D
+      character animation, stable faces.
+    sfx: []
+    music: "M5 Fläche, sehr leise unter dem Dialog"
+
+  - id: S30
+    name: SIEH GENAU HIN
+    act: "Akt 6 – Die Begegnung"
+    location: Flur, Etage 0
+    start: 129.0
+    duration: 6.0
+    render_duration: 6
+    beat: twist
+    shot: "Groß der ältere Leon: er tritt ins Licht – dasselbe Muttermal unter dem rechten Auge"
+    camera: "statisch, minimaler Zug nach vorn; Schärfe auf Auge und Muttermal"
+    action: >
+      Der Ältere tritt einen halben Schritt ins rote Licht. Das Muttermal. Die Augen.
+      „Sieh genau hin, Leon. Ich bin, was von dir übrig bleibt.“
+    transition: "harter Schnitt auf die Großaufnahme (Bildausschnitt Stirn bis Nasenspitze – Mund außerhalb)"
+    keyframe_prompt: >
+      Tight close-up of the upper half of the face of @leon_alt in @flur, framed from forehead to the
+      tip of the nose so the mouth is below the frame, grey hair, deep lines, tired grey-green eyes
+      looking into the camera, the small mole under his right eye in sharp focus, red light from above.
+    motion_prompt: >
+      The older man leans a little forward into the red light, his eyes steady on the camera, blinking
+      slowly; the mole under his right eye stays in sharp focus. Very slow push in. Subtle natural 3D
+      facial animation, stable face.
+    sfx: []
+    music: "M5 – ein einzelner warmer Ton löst sich aus der Fläche"
+
+  - id: S31
+    name: NICHT MÖGLICH
+    act: "Akt 6 – Die Begegnung"
+    location: Flur, Etage 0
+    start: 135.0
+    duration: 6.0
+    render_duration: 6
+    beat: twist
+    shot: "Groß Leon: er erkennt sich. Hand geht unwillkürlich zum eigenen Muttermal"
+    camera: "statisch, leicht untersichtig"
+    action: >
+      Leon berührt das Muttermal unter seinem eigenen Auge. „Das ist nicht möglich.“ Der Ältere, im Off:
+      „Du warst schon einmal hier. Öfter, als du zählen kannst.“
+    transition: "Gegenschuss; die Antwort des Älteren beginnt im Off und läuft in die nächste Einstellung"
+    match_previous: S29
+    keyframe_prompt: >
+      Close-up of @leon in @flur, soaked, red emergency light from above, staring straight ahead in
+      disbelief, the fingertips of his right hand touching the small mole under his own right eye,
+      lips slightly parted, mist behind him.
+    motion_prompt: >
+      The young man slowly raises his hand and touches the mole under his eye, shakes his head
+      faintly and says one short sentence, then listens, breathing shallowly. Static camera. Subtle
+      natural 3D facial animation, stable face.
+    sfx: []
+    music: "M5 Fläche"
+
+  - id: S32
+    name: NUR HINTER EINER
+    act: "Akt 6 – Die Begegnung"
+    location: Flur, Etage 0
+    start: 141.0
+    duration: 5.0
+    render_duration: 5
+    beat: stakes
+    shot: "Zweier im Profil, beide als Silhouetten gegen die roten Lichter; zwischen ihnen die Flucht der Türen"
+    camera: "sehr langsame Fahrt rückwärts – der Flur wird länger"
+    action: >
+      Der Ältere deutet den Flur hinunter. „Mia ist hinter einer dieser Türen. Nur hinter einer.“
+    transition: "harter Schnitt in die Zweier-Einstellung (Silhouetten – keine Lippen sichtbar)"
+    keyframe_prompt: >
+      Profile two-shot in @flur: on the left @leon, on the right @leon_alt, facing each other as dark
+      silhouettes against the row of red emergency lights, the same height and the same posture,
+      between them the endless line of identical doors, mist on the floor.
+    motion_prompt: >
+      The older man slowly raises one arm and points down the endless corridor of doors; the young man
+      turns his head to follow. The camera pulls back very slowly, making the corridor feel longer.
+      Slow 3D animation.
+    sfx: []
+    music: "M5 Fläche, tiefer Puls beginnt (M6 schleicht sich ein)"
+
+  - id: S33
+    name: ZWEI MÖGLICHKEITEN
+    act: "Akt 6 – Die Begegnung"
+    location: Flur, Etage 0
+    start: 146.0
+    duration: 5.0
+    render_duration: 5
+    beat: choice
+    shot: "Über die Schulter des Älteren (von hinten) auf Leon; hinter Leon der offene Aufzug, neben ihm Tür 008"
+    camera: "statisch; Schärfe auf Leon"
+    action: >
+      „Du hast zwei Möglichkeiten.“ Leon steht genau zwischen beiden: hinter ihm der Aufzug, neben ihm
+      eine Tür 008.
+    transition: "harter Schnitt; Sprecher von hinten (kein Lippenbild)"
+    keyframe_prompt: >
+      Over-the-shoulder shot from behind @leon_alt in @flur looking at @leon who stands in the middle
+      of the corridor, far behind the young man the open elevator cabin glowing warm yellow, right
+      beside him a grey door with a small brass number plate, red light, mist.
+    motion_prompt: >
+      The young man looks from the older man to the glowing elevator behind him and then to the door
+      beside him, torn. The older man's grey head in the foreground barely moves. Static camera.
+      Subtle natural 3D character animation, stable face.
+    sfx: []
+    music: "M6 Entscheidung: tickender Puls, noch langsam"
+
+  - id: S34
+    name: A – DER AUFZUG
+    act: "Akt 6 – Die Begegnung"
+    location: Flur, Blick zum Aufzug
+    start: 151.0
+    duration: 2.5
+    render_duration: 3
+    beat: choice
+    shot: "Leons Blick: die offene Kabine, warmes flackerndes Licht – der einzige helle Ort"
+    camera: "langsamer Zug auf die Kabine"
+    action: >
+      „Zurück in den Aufzug.“ Die Kabine wartet, warm und hell. Sie sieht aus wie Rettung.
+    transition: "Blickachsen-Schnitt"
+    keyframe_prompt: >
+      View down @flur toward the open elevator cabin at its end, the cabin interior of @aufzug glowing
+      warm flickering yellow, the only bright place in the red-lit darkness, mist drifting across the
+      threshold, nobody inside.
+    motion_prompt: >
+      Slow push toward the open, empty elevator cabin. Its warm ceiling light flickers invitingly.
+      Mist drifts across the threshold. 3D animation.
+    sfx: [aufzug_licht_summen]
+    music: "M6 Puls"
+
+  - id: S35
+    name: B – TÜR 008
+    act: "Akt 6 – Die Begegnung"
+    location: Flur, Tür 008
+    start: 153.5
+    duration: 3.0
+    render_duration: 3
+    beat: choice
+    shot: "Leons Blick: Tür 008, der Messingknauf. Von innen klopft es leise dreimal"
+    camera: "langsamer Zug auf Knauf und Schild"
+    action: >
+      „Oder du öffnest Tür 008.“ Von innen klopft es. Dreimal. Leise.
+    transition: "harter Schnitt (Gegenstück zu S34, gleiche Bewegung)"
+    keyframe_prompt: >
+      Close view of @tuer008 in @flur, the round brass doorknob and the small brass number plate with
+      the digits 008 in focus, red emergency light from above, a thin line of pale light under the
+      door, mist at the bottom of the frame.
+    motion_prompt: >
+      Slow push toward the brass doorknob and the number plate. The line of light under the door
+      flickers as if someone moves behind it. 3D animation.
+    sfx: [tuer_klopfen]
+    music: "M6 Puls wird schneller"
+
+  - id: S36
+    name: DIE FALSCHE ENTSCHEIDUNG
+    act: "Akt 6 – Die Begegnung"
+    location: Flur, Etage 0
+    start: 156.5
+    duration: 7.0
+    render_duration: 7
+    beat: cliffhanger
+    shot: "Detail: nur die Augen des Älteren, bildfüllend. Er beugt sich vor"
+    camera: "extrem langsamer Zug nach vorn"
+    action: >
+      Der Ältere beugt sich zu Leon. Nur seine Augen. „Aber denk daran …“ – Pause –
+      „… beim letzten Mal hast du die falsche Entscheidung getroffen.“ Er sagt nicht, welche.
+    transition: "harter Schnitt auf die Augen (Mund außerhalb des Bildes)"
+    match_previous: S30
+    keyframe_prompt: >
+      Extreme close-up of only the eyes of @leon_alt, filling the frame from eyebrows to cheekbones,
+      tired grey-green eyes, the small mole under his right eye, deep lines, red light on one side of
+      the face and black shadow on the other.
+    motion_prompt: >
+      The older man's eyes hold the camera, unblinking, then narrow very slightly with something like
+      pity. Extremely slow push in. Minimal, precise 3D facial animation, stable face.
+    sfx: []
+    music: "M6 Puls beschleunigt unter der letzten Zeile"
+
+  - id: S37
+    name: ENTSCHEIDE
+    act: "Akt 6 – Die Begegnung"
+    location: Flur, Etage 0
+    start: 163.5
+    duration: 4.5
+    render_duration: 5
+    beat: cliffhanger
+    shot: "Halbnah Leon in der Flurmitte: alle Schlösser springen auf, der Aufzug beginnt zu schließen"
+    camera: "schneller Zug auf sein Gesicht; Reißschwenk Tür – Aufzug – Tür"
+    action: >
+      Den ganzen Flur entlang springen die Schlösser auf, eines nach dem anderen. Gong: Die Aufzugtüren
+      beginnen sich zu schließen. Leon steht dazwischen. Er holt Luft – Schwarz.
+    transition: "harter Schnitt; Film endet auf hartem Schnitt ins Schwarz (0,4 s Stille, dann Schlag)"
+    match_previous: S33
+    keyframe_prompt: >
+      Medium close shot of @leon standing in the middle of @flur, head turned sharply toward the grey
+      door beside him, body still angled toward the glowing elevator far behind, eyes wide, mouth
+      open in a sharp breath, red light, mist rising.
+    motion_prompt: >
+      The young man whips his head from the door to the elevator far behind him and back to the door,
+      panicked, as the distant elevator doors begin to slide shut. Fast push in on his face. He draws
+      a sharp breath. Urgent natural 3D character animation, stable face.
+    sfx: [schloesser_klack, herzschlag_final, gong_schluss, tueren_schliessen]
+    music: "M6 auf Maximum – harter Abriss 0,4 s vor Schluss"
+
+# ---------------------------------------------------------------------
+# DIALOG (Deutsch) – „at“ ist der sekundengenaue Einsatz. tts_text enthält Regie-Tags für die Stimme.
+# Kein sichtbarer Sprecher hat den Mund im Bild (siehe DREHBUCH.md, „Lippen“): Die Zeilen liegen im
+# Off, über der Schulter, als Silhouette oder auf einer Augen-Großaufnahme.
+# ---------------------------------------------------------------------
+dialogue:
+  - {id: D01, scene: S03, character: mia, at: 6.6, text: "Leon? Der Aufzug ist wieder von allein gekommen.", tts_text: "[nervous, quiet] Leon? Der Aufzug ist wieder von allein gekommen."}
+  - {id: D02, scene: S04, character: mia, at: 11.2, text: "Da ist ein Knopf, der vorher nicht da war.", tts_text: "[whispers] Da ist ein Knopf, der vorher nicht da war."}
+  - {id: D03, scene: S05, character: mia, at: 15.4, text: "Ich drück ihn nicht. Komm bitte heim.", tts_text: "[scared, quiet] Ich drück ihn nicht. Komm bitte heim."}
+  - {id: D04, scene: S06, character: leon, at: 20.7, text: "Mia.", tts_text: "[whispers, breathless] Mia."}
+  - {id: D05, scene: S08, character: leon, at: 27.6, text: "Mia?!", tts_text: "[shouting] Mia?!", fx: treppenhaus_echo}
+  - {id: D06, scene: S13, character: leon, at: 50.4, text: "Komm schon …", tts_text: "[muttering, tense] Komm schon …", fx: kabine}
+  - {id: D07, scene: S16, character: stimme, at: 61.8, text: "Drück sie nicht, Leon.", tts_text: "[whispers] Drück sie nicht, Leon."}
+  - {id: D08, scene: S16, character: leon, at: 65.2, text: "Wo ist meine Schwester?", tts_text: "[scared, firm] Wo ist meine Schwester?", fx: kabine}
+  - {id: D09, scene: S17, character: stimme, at: 70.2, text: "Unten.", tts_text: "[whispers] Unten."}
+  - {id: D10, scene: S21, character: leon, at: 88.6, text: "Das ist meine Nummer.", tts_text: "[confused, breathless] Das ist meine Nummer.", fx: kabine}
+  - {id: D11, scene: S27, character: mia, at: 113.4, text: "Leon? Bist du das?", tts_text: "[quiet, hopeful] Leon? Bist du das?", fx: hinter_tuer, allow_overlap: true}
+  - {id: D12, scene: S27, character: mia, at: 115.0, text: "Leon? Bist du das?", tts_text: "[quiet] Leon? Bist du das?", fx: hinter_tuer_fern, allow_overlap: true, subtitle: false, gain_db: -3}
+  - {id: D13, scene: S27, character: mia, at: 116.1, text: "Leon? Bist du das?", tts_text: "[whispers] Leon? Bist du das?", fx: hinter_tuer_fern, allow_overlap: true, subtitle: false, gain_db: -6}
+  - {id: D14, scene: S29, character: leon_alt, at: 124.4, text: "Diesmal warst du schnell.", tts_text: "[calm, tired] Diesmal warst du schnell."}
+  - {id: D15, scene: S29, character: leon, at: 127.2, text: "Wer sind Sie?", tts_text: "[wary] Wer sind Sie?", fx: flur_stimme}
+  - {id: D16, scene: S30, character: leon_alt, at: 129.6, text: "Sieh genau hin, Leon. Ich bin, was von dir übrig bleibt.", tts_text: "[calm] Sieh genau hin, Leon. [quietly] Ich bin, was von dir übrig bleibt."}
+  - {id: D17, scene: S31, character: leon, at: 135.5, text: "Das ist nicht möglich.", tts_text: "[whispers, shaken] Das ist nicht möglich.", fx: flur_stimme}
+  - {id: D18, scene: S31, character: leon_alt, at: 137.8, text: "Du warst schon einmal hier. Öfter, als du zählen kannst.", tts_text: "[calm, tired] Du warst schon einmal hier. Öfter, als du zählen kannst."}
+  - {id: D19, scene: S32, character: leon_alt, at: 142.9, text: "Mia ist hinter einer dieser Türen. Nur hinter einer.", tts_text: "[quietly] Mia ist hinter einer dieser Türen. Nur hinter einer."}
+  - {id: D20, scene: S33, character: leon_alt, at: 147.4, text: "Du hast zwei Möglichkeiten.", tts_text: "[calm] Du hast zwei Möglichkeiten."}
+  - {id: D21, scene: S34, character: leon_alt, at: 151.2, text: "Zurück in den Aufzug.", tts_text: "[calm] Zurück in den Aufzug."}
+  - {id: D22, scene: S35, character: leon_alt, at: 153.8, text: "Oder du öffnest Tür 008.", tts_text: "[calm] Oder du öffnest Tür null null acht."}
+  - {id: D23, scene: S36, character: leon_alt, at: 156.9, text: "Aber denk daran …", tts_text: "[quietly, close] Aber denk daran …"}
+  - {id: D24, scene: S36, character: leon_alt, at: 158.9, text: "… beim letzten Mal hast du die falsche Entscheidung getroffen.", tts_text: "[whispers, slowly] beim letzten Mal hast du die falsche Entscheidung getroffen."}
+
+# ---------------------------------------------------------------------
+# EINBLENDUNGEN – lesbarer Text wird in der Nachbearbeitung gesetzt (Bild-KI schreibt unzuverlässig).
+# x/y = Bildmitte der Einblendung (0–1). Die Anzeige-Einstellungen S20/S23 sind dafür fest verriegelt.
+# ---------------------------------------------------------------------
+overlays:
+  - {from: 0.5, to: 3.0, style: uhr, text: "02:17", x: 0.5, y: 0.14}
+  - {from: 6.3, to: 10.8, style: nachricht, text: "MIA · Sprachnachricht · 02:09", x: 0.5, y: 0.2}
+  - {from: 82.0, to: 82.7, style: anzeige, text: "0", x: 0.5, y: 0.5, fade_s: 0.03}
+  - {from: 82.7, to: 83.3, style: anzeige, text: "-1", x: 0.5, y: 0.5, fade_s: 0.03}
+  - {from: 83.3, to: 83.8, style: anzeige, text: "-2", x: 0.5, y: 0.5, fade_s: 0.03}
+  - {from: 83.8, to: 84.2, style: anzeige, text: "-3", x: 0.5, y: 0.5, fade_s: 0.03}
+  - {from: 84.2, to: 84.6, style: anzeige, text: "-4", x: 0.5, y: 0.5, fade_s: 0.03}
+  - {from: 84.6, to: 84.9, style: anzeige, text: "-5", x: 0.5, y: 0.5, fade_s: 0.03}
+  - {from: 84.9, to: 85.2, style: anzeige, text: "-6", x: 0.5, y: 0.5, fade_s: 0.03}
+  - {from: 85.2, to: 85.5, style: anzeige, text: "-7", x: 0.5, y: 0.5, fade_s: 0.03}
+  - {from: 85.5, to: 86.0, style: anzeige, text: "-8", x: 0.5, y: 0.5, fade_s: 0.03}
+  - {from: 87.2, to: 90.8, style: nachricht, text: "Von: DEINE EIGENE NUMMER\nDU HAST ES WIEDER GETAN.", x: 0.5, y: 0.2}
+  - {from: 96.5, to: 99.0, style: anzeige, text: "0", x: 0.5, y: 0.5, fade_s: 0.4}
+
+# ---------------------------------------------------------------------
+# TON – durchgehende Partitur aus sechs Musik-Abschnitten (M1–M6), Atmosphären und Einzelgeräuschen.
+# Alles ElevenLabs Sound Effects (kommerziell ab Starter). Echte Musik (Eleven Music oder lizenzierte
+# Datei unter assets/music/) kann M1–M6 später ersetzen – siehe LIZENZEN.md.
+# ---------------------------------------------------------------------
+sound_design:
+  voice_fx:
+    sprachnachricht: "highpass=f=350,lowpass=f=3200,volume=1.5"
+    treppenhaus_echo: "aecho=0.6:0.5:130|260:0.35|0.2,volume=1.1"
+    kabine: "aecho=0.4:0.3:25:0.2"
+    fluester_stimme: "highpass=f=200,aecho=0.6:0.5:40|80:0.3|0.2,volume=1.5"
+    flur_stimme: "highpass=f=100,aecho=0.5:0.4:60:0.25,volume=1.3"
+    hinter_tuer: "lowpass=f=900,aecho=0.5:0.4:70:0.3,volume=1.2"
+    hinter_tuer_fern: "lowpass=f=650,aecho=0.6:0.5:110|190:0.35|0.25,volume=1.0"
+  music:
+    file: assets/music/etage0_s01e01_score.wav   # optional: lizenzierte/komponierte Musik; fehlt die Datei, spielen M1–M6
+    bed_gain_db: -16
+    duck_under_dialogue: true
+    generate:
+      enabled: false
+  # Vier bewusste Momente völliger Stille – jeweils direkt vor einem Schlag.
+  silence_windows:
+    - {from: 55.7, to: 56.5, label: "Licht aus – völlige Stille vor dem Atem"}
+    - {from: 77.3, to: 78.0, label: "nach dem Knopfdruck – Stille vor dem Ruck"}
+    - {from: 96.3, to: 97.1, label: "nach dem Aufprall – Stille vor dem falschen Gong"}
+    - {from: 167.6, to: 168.0, label: "letzter Atemzug – Stille vor dem Schlag ins Schwarz"}
+  drones:
+    # --- Atmosphären ---
+    - {id: regen_aussen, label: "Atmo: starker Regen auf Straße", at: 0.0, until: 23.1, duration: 22, loop: true, repeat_to_fill: true, gain_db: -15, fade_in: 0.2, fade_out: 0.1,
+       prompt: "Heavy steady rain on a city street at night, water running in gutters, distant rumble, no voices, seamless loop"}
+    - {id: regen_innen, label: "Atmo: Regen dumpf durch Mauern + Neonbrummen", at: 23.0, until: 46.0, duration: 22, loop: true, repeat_to_fill: true, gain_db: -27, fade_in: 0.2, fade_out: 1.5,
+       prompt: "Muffled rain heard from inside a concrete stairwell, faint fluorescent tube hum, large empty reverberant hall, seamless loop"}
+    - {id: aufzug_raum, label: "Atmo: Kabinenbrummen", at: 40.0, until: 77.3, duration: 20, loop: true, repeat_to_fill: true, gain_db: -27, fade_in: 2.0,
+       prompt: "Old elevator cabin interior room tone, low electrical hum, faint cable creaks, close and claustrophobic, seamless loop"}
+    - {id: flur_raum, label: "Atmo: kalter Flur, ferne Lüftung", at: 99.0, until: 167.6, duration: 22, loop: true, repeat_to_fill: true, gain_db: -26, fade_in: 2.5,
+       prompt: "Cold hollow air in a very long empty concrete corridor, distant ventilation drone, faint electrical buzz of emergency lights, seamless loop"}
+    # --- Musik M1–M6 ---
+    - {id: m1_flucht, label: "M1 Flucht: treibender tiefer Puls", at: 0.2, until: 23.0, duration: 22, loop: true, repeat_to_fill: true, gain_db: -19, fade_in: 0.3, fade_out: 0.05,
+       prompt: "Dark cinematic thriller score, urgent low pulsing synth ostinato at 110 bpm with muted percussion hits and a tense low string drone, no melody, instrumental, seamless loop"}
+    - {id: m2_haus, label: "M2 Haus: gläserner Dauerton", at: 30.0, until: 46.0, duration: 16, loop: true, repeat_to_fill: true, gain_db: -25, fade_in: 2.0, fade_out: 3.0,
+       prompt: "Single thin high sustained glassy tone with slow eerie beating, bowed glass, almost silent horror underscore, no rhythm, instrumental, seamless loop"}
+    - {id: m3_knopf, label: "M3 Knopf: tiefer Sub-Drone, steigt an", at: 57.2, until: 77.3, duration: 21, loop: false, gain_db: -17, fade_in: 1.5,
+       prompt: "Deep evolving sub-bass horror drone that slowly swells and rises in tension over twenty seconds, low dissonant strings joining near the end, no melody, instrumental", prompt_influence: 0.4}
+    - {id: m5_etage0, label: "M5 Etage 0: kalte dunkle Fläche", at: 99.4, until: 163.5, duration: 30, loop: true, repeat_to_fill: true, gain_db: -21, fade_in: 3.0, fade_out: 1.0,
+       prompt: "Cold dark ambient horror score, slow evolving dissonant pad with distant wordless choir-like tones and very low drone, vast empty space, no rhythm, instrumental, seamless loop"}
+  sfx:
+    # --- Akt 1 ---
+    - {id: donner_auftakt,     at: 0.0,   duration: 4,   gain_db: -8,  label: "Donnerschlag ganz nah (Auftakt)", prompt: "Sudden very close thunder crack followed by rolling thunder, heavy rain"}
+    - {id: schritte_rennen,    at: 0.3,   duration: 6,   gain_db: -15, label: "Rennen auf nassem Asphalt, Pfützen", prompt: "One man running fast on wet asphalt in sneakers, splashing through puddles, close perspective"}
+    - {id: atem_rennen,        at: 0.5,   duration: 5,   gain_db: -20, label: "panischer Atem im Lauf", prompt: "Young man panting hard and fast while running, panicked breathing, close microphone"}
+    - {id: handy_ton,          at: 6.0,   duration: 1,   gain_db: -15, label: "Sprachnachricht startet (Signalton)", prompt: "Short soft smartphone voice message playback start blip"}
+    - {id: schritte_auslaufen, at: 6.0,   duration: 5,   gain_db: -19, label: "Schritte werden langsamer, bleiben stehen", prompt: "Running footsteps on wet pavement slowing down to a walk and stopping, sneakers, rain"}
+    - {id: donner_fern,        at: 18.5,  duration: 4,   gain_db: -10, label: "Blitz + Donner auf das leere Fenster", prompt: "Bright lightning strike crack with a long deep thunder roll, rain"}
+    - {id: schock_figur,       at: 18.5,  duration: 2,   gain_db: -10, label: "kurzer dissonanter Streicherstich", prompt: "Short sharp dissonant horror string stab, sudden, with a cold reverb tail"}
+    - {id: sprint_tuer,        at: 21.2,  duration: 2,   gain_db: -15, label: "Sprint zur Haustür, Tür wird aufgestoßen", prompt: "Three fast sprinting footsteps on wet stone then a heavy glass door pushed open hard"}
+    # --- Akt 2 ---
+    - {id: tuer_zu,            at: 22.9,  duration: 2.5, gain_db: -8,  label: "schwere Tür knallt zu, Hall im Treppenhaus", prompt: "Heavy steel-framed glass door slamming shut with a long echo in a large concrete stairwell"}
+    - {id: neon_flackern,      at: 23.6,  duration: 6,   gain_db: -21, label: "Neonröhren flackern, ticken", prompt: "Old fluorescent tubes flickering with electrical buzzes, ticks and pings"}
+    - {id: tropfen,            at: 24.4,  duration: 6,   gain_db: -18, label: "Wasser tropft von der Kleidung auf Fliesen", prompt: "Water dripping steadily from wet clothes onto a hard tiled floor, close, reverberant room"}
+    - {id: schritte_oben,      at: 30.4,  duration: 4,   gain_db: -15, label: "langsame Schritte, viele Stockwerke höher", prompt: "Slow heavy footsteps on concrete stairs several floors above, distant, echoing down a stairwell"}
+    - {id: licht_aus_klack,    at: 34.2,  duration: 1,   gain_db: -15, label: "oben klackt ein Licht aus", prompt: "Distant light switch clack and a fluorescent tube dying with a soft pop, reverberant"}
+    - {id: aufzug_kommt,       at: 35.2,  duration: 4,   gain_db: -15, label: "Aufzugmotor, Kabine fährt herunter", prompt: "Old elevator machinery starting, cabin descending in the shaft, cable hum getting closer, clunks"}
+    - {id: aufzug_gong,        at: 39.0,  duration: 2,   gain_db: -12, label: "alter Aufzug-Gong", prompt: "Single old elevator arrival bell ding, slightly detuned, reverberant hall"}
+    - {id: tueren_auf,         at: 39.5,  duration: 3,   gain_db: -15, label: "Stahltüren gleiten auf", prompt: "Old elevator steel doors sliding open with a metallic scrape and a final clunk"}
+    - {id: schritt_kabine,     at: 43.6,  duration: 2,   gain_db: -18, label: "Schritt in die Kabine, Boden knarrt", prompt: "Two cautious footsteps onto a hollow metal elevator floor, cabin creaking under the weight"}
+    # --- Akt 3 ---
+    - {id: taste_klick_8,      at: 46.7,  duration: 1,   gain_db: -12, label: "Knopf 8 – Klick, keine Reaktion", prompt: "Old mechanical elevator button pressed with a dry hollow click"}
+    - {id: taste_klick_8b,     at: 49.4,  duration: 1.5, gain_db: -12, label: "Knopf 8 – zweimal, ungeduldig", prompt: "Old mechanical elevator button pressed twice quickly and impatiently, dry hollow clicks"}
+    - {id: tueren_zu_knall,    at: 51.5,  duration: 2,   gain_db: -8,  label: "Türen schlagen von selbst zu", prompt: "Elevator steel doors slamming shut abruptly with a violent metallic bang"}
+    - {id: licht_flackern_aus, at: 53.0,  duration: 2.7, gain_db: -14, label: "Licht flackert heftig und erlischt", prompt: "Light bulb flickering violently with loud electrical buzzing and crackling, then dying with a pop"}
+    - {id: atem_dunkel,        at: 56.5,  duration: 3,   gain_db: -21, label: "zittriger Atem im Dunkeln", prompt: "Young man breathing shakily and quietly in complete darkness, close microphone, small room"}
+    - {id: taste_glimmen,      at: 57.2,  duration: 3,   gain_db: -15, label: "Taste glimmt auf: hoher, steigender Ton", prompt: "Eerie rising high-pitched tone with a soft electric shimmer, something lighting up"}
+    - {id: herzschlag_langsam, at: 60.5,  duration: 12,  gain_db: -19, label: "Herzschlag, langsam und schwer", prompt: "Deep muffled slow heavy human heartbeat, steady, cinematic tension, nothing else"}
+    - {id: fluestern_hauch,    at: 61.4,  duration: 1.5, gain_db: -19, label: "kalter Hauch am Ohr", prompt: "Cold breathy whoosh passing very close to the ear, ghostly exhale"}
+    - {id: herzschlag_schnell, at: 72.5,  duration: 4.8, gain_db: -14, label: "Herzschlag beschleunigt", prompt: "Deep muffled human heartbeat accelerating from slow to very fast, cinematic tension, nothing else"}
+    - {id: taste_klick_0,      at: 76.6,  duration: 1,   gain_db: -7,  label: "Taste 0 – schweres Klacken", prompt: "Heavy mechanical button pressed with a deep solid clunk and a short metallic resonance"}
+    # --- Akt 4 ---
+    - {id: aufzug_ruck,        at: 78.0,  duration: 3,   gain_db: -7,  label: "Ruck: Metall ächzt, Kabine sackt weg", prompt: "Elevator jolting violently and dropping, metal groaning and rattling, heavy shudder, cables snapping taut"}
+    - {id: abfahrt_grollen,    at: 79.5,  duration: 16,  gain_db: -11, fade_in: 0.5, label: "M4 Absturz: Grollen, steigt 16 s lang an", prompt: "Elevator falling fast down a deep shaft, deep rumbling roar and wind that keeps rising in pitch and intensity, rattling metal, horror riser", prompt_influence: 0.4}
+    - {id: metall_kreischen,   at: 84.6,  duration: 4,   gain_db: -15, label: "Metall kreischt an den Schienen", prompt: "Metal screeching against guide rails with sparks, high-pitched grinding"}
+    - {id: handy_vibration,    at: 86.3,  duration: 2,   gain_db: -12, label: "Handy vibriert zweimal", prompt: "Smartphone vibrating twice in a hand, short buzzes"}
+    - {id: lampe_platzt,       at: 93.2,  duration: 1.5, gain_db: -10, label: "Lampe platzt, Funken", prompt: "Light bulb exploding with breaking glass and electric sparks"}
+    - {id: aufprall_stopp,     at: 95.0,  duration: 2,   gain_db: -5,  label: "Schlag: der Aufzug steht", prompt: "Massive metallic impact as a falling elevator slams to a dead stop, deep boom, short"}
+    - {id: tinnitus,           at: 96.0,  duration: 3,   gain_db: -24, label: "hohes Klingeln in den Ohren", prompt: "Soft high-pitched ringing in the ears after an explosion, fading slowly"}
+    - {id: gong_falsch,        at: 97.2,  duration: 2.5, gain_db: -12, label: "Gong – zu tief, zu langsam", prompt: "Old elevator arrival bell pitched down an octave, slow and wrong, long dark reverb"}
+    # --- Akt 5 ---
+    - {id: tueren_auf_langsam, at: 99.2,  duration: 4,   gain_db: -14, label: "Türen öffnen sich langsam", prompt: "Old elevator steel doors sliding open very slowly with a long metallic scrape"}
+    - {id: flur_luft,          at: 100.4, duration: 5,   gain_db: -18, label: "kalte Luft strömt herein", prompt: "Cold hollow gust of air rushing out of a long empty corridor, eerie"}
+    - {id: schritte_flur,      at: 105.2, duration: 3.8, gain_db: -18, label: "vorsichtige Schritte auf Teppich/Beton", prompt: "Slow cautious footsteps in wet sneakers on worn carpet over concrete, long corridor echo"}
+    - {id: neon_rot_summen,    at: 109.0, duration: 3,   gain_db: -22, label: "Notlicht summt, flackert", prompt: "Emergency light humming and flickering with a faint electrical buzz"}
+    - {id: tuer_kratzen,       at: 112.2, duration: 2,   gain_db: -19, label: "leises Kratzen hinter der Tür", prompt: "Faint fingernails scratching slowly on the inside of a wooden door, muffled"}
+    # --- Akt 6 ---
+    - {id: tuer_quietschen,    at: 119.3, duration: 3,   gain_db: -14, label: "ferne Tür öffnet sich quietschend", prompt: "Distant apartment door creaking open slowly, echoing down a long corridor"}
+    - {id: schritte_alt,       at: 120.6, duration: 3.6, gain_db: -17, label: "ruhige, gleichmäßige Schritte kommen näher", prompt: "Slow steady footsteps of a man in worn sneakers approaching down a long corridor, unhurried, echo"}
+    - {id: aufzug_licht_summen, at: 151.0, duration: 2.5, gain_db: -20, label: "Kabinenlicht summt, flackert", prompt: "Warm electrical hum of an old elevator ceiling light with a gentle flicker"}
+    - {id: tuer_klopfen,       at: 154.4, duration: 2,   gain_db: -15, label: "drei leise Klopfer von innen", prompt: "Three soft slow knocks on a wooden door from the inside, muffled"}
+    - {id: m6_entscheidung,    at: 146.0, duration: 21.6, gain_db: -17, fade_in: 3.0, label: "M6 Entscheidung: tickender Puls, wird immer schneller", prompt: "Tense cinematic ticking pulse that starts slow and steadily accelerates and rises for twenty seconds toward a climax, low synth and clock-like percussion, horror thriller, instrumental, no melody", prompt_influence: 0.4}
+    - {id: schloesser_klack,   at: 163.6, duration: 3.5, gain_db: -10, label: "Schlösser springen auf, eines nach dem anderen", prompt: "Many door locks unlatching one after another in quick succession, receding into the distance down a corridor"}
+    - {id: herzschlag_final,   at: 163.5, duration: 4,   gain_db: -13, label: "Herzschlag, sehr schnell", prompt: "Very fast pounding human heartbeat, close, cinematic tension, nothing else"}
+    - {id: gong_schluss,       at: 165.2, duration: 2,   gain_db: -11, label: "Aufzug-Gong", prompt: "Single old elevator bell ding, slightly detuned, reverberant corridor"}
+    - {id: tueren_schliessen,  at: 165.9, duration: 1.7, gain_db: -13, label: "Aufzugtüren beginnen zu schließen", prompt: "Old elevator steel doors starting to slide shut with a slow metallic scrape"}
+
+subtitles:
+  font: "Inter Display"
+  font_size: 60
+  primary_colour: "&H00FFFFFF"
+  outline_colour: "&H00000000"
+  outline: 4
+  shadow: 0
+  margin_v: 520
+  margin_lr: 120
+  min_display_s: 1.0
+  chars_per_second: 15
+
+# ---------------------------------------------------------------------
+# ENTSCHEIDUNGSKARTE nach dem Schnitt ins Schwarz (FFmpeg, kostenlos)
+# ---------------------------------------------------------------------
+outro:
+  enabled: true
+  duration_s: 8.0
+  title: "ETAGE 0"
+  background: "0x000000"
+  text_colour: "0xf2f2f2"
+  fade_s: 0.3
+  rows:
+    - {text: "WAS SOLL LEON TUN?",                     size: 0.078, y: 0.300, bold: true,  colour: "0xe8201a", appear_at: 0.9}
+    - {text: "A – Zurück in den Aufzug",               size: 0.056, y: 0.430, bold: true,  appear_at: 2.2}
+    - {text: "B – Tür 008 öffnen",                     size: 0.056, y: 0.510, bold: true,  appear_at: 3.2}
+    - {text: "Schreib A oder B in die Kommentare.",    size: 0.038, y: 0.650, alpha: 0.9,  appear_at: 4.6}
+    - {text: "Deine Entscheidung bestimmt Episode 2.", size: 0.038, y: 0.695, alpha: 0.9,  appear_at: 4.6}
+    - {text: "ETAGE 0 · EPISODE 1 · STORYHOUSE ORIGINALS", size: 0.024, y: 0.900, alpha: 0.5, appear_at: 0.9}
+  sting:
+    prompt: "Hard cinematic sub-bass impact hit on an abrupt cut to black, followed by a long cold reverberant tail and a slow distant heartbeat fading out, horror thriller"
+    duration: 8
+    gain_db: -6

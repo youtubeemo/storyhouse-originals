@@ -46,6 +46,8 @@ def _plan_args(p: argparse.ArgumentParser) -> None:
     p.add_argument("--audio-provider", default=None, choices=["elevenlabs", "runway"],
                    help="Tonquelle (Standard: audio.provider aus episode.yaml)")
     p.add_argument("--no-music", action="store_true", help="Keine Musik generieren (Drone als Musikbett)")
+    p.add_argument("--stills-only", action="store_true",
+                   help="Bild-Storyboard-Stufe: Referenzen, Keyframes und Ton, aber kein Video")
 
 
 def _summary(text: str) -> None:
@@ -131,6 +133,10 @@ def main(argv: list[str] | None = None) -> int:
 
     p = sub.add_parser("tools", help="Werkzeug-Katalog (config/providers.yaml) anzeigen"); _common(p)
 
+    p = sub.add_parser("storyboard", help="Storyboard + sekundengenauen Bild-/Tonplan aus episode.yaml erzeugen")
+    _common(p)
+    p.add_argument("--out", default=None, help="Zieldatei (Markdown); ohne Angabe Ausgabe auf der Konsole")
+
     p = sub.add_parser("close-run", help="Hängende Reservierung manuell abschließen (z. B. nach Runner-Absturz)")
     _common(p)
     p.add_argument("--ledger", default=".ledger/ledger.json")
@@ -159,6 +165,16 @@ def _dispatch(args: argparse.Namespace) -> int:
     if args.cmd == "kosten":
         from storyhouse.projection import table
         _summary("### Kostenhochrechnung\n\n" + table(ep, pricing, cfg, args.minuten, args.nachdrehquote))
+        return 0
+
+    if args.cmd == "storyboard":
+        from storyhouse.storyboard import render
+        text = render(ep)
+        if args.out:
+            Path(args.out).write_text(text, encoding="utf-8")
+            print(f"✅ {args.out} geschrieben ({len(ep.scenes)} Einstellungen)")
+        else:
+            print(text)
         return 0
 
     if args.cmd == "tools":
@@ -190,7 +206,8 @@ def _dispatch(args: argparse.Namespace) -> int:
 
     plan = build_plan(ep, pricing, profile=args.profile, scenes=args.scenes, include_audio=not args.no_audio,
                       audio_provider=args.audio_provider,
-                      include_music=cfg.el_music_license_confirmed and not args.no_music)
+                      include_music=cfg.el_music_license_confirmed and not args.no_music,
+                      stills_only=args.stills_only)
     estimate_eur = plan.total_eur(pricing, cfg)
     uses_el = "elevenlabs" in plan.providers
 
