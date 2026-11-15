@@ -112,11 +112,22 @@ def test_kostenstufen(ep):
     assert not [j for j in full.jobs if j.kind == "music"]
 
 
-def test_serienfolge_ist_nicht_zum_bezahlten_rendern_freigegeben(ep):
-    cfg = BudgetConfig.load()
-    assert cfg.paid_rendering_enabled is False
-    with pytest.raises(ApprovalError, match="etage-0-s01e01"):
-        require_paid_scope(cfg, build_plan(ep, Pricing.load(), profile="final"))
+def test_freigabe_deckt_nur_die_standbild_stufe_bis_10_euro(ep, tmp_path):
+    """Bild-Storyboard-Stufe passt in die 10 € inkl. Reserve; der bewegte Film wird verweigert."""
+    from storyhouse.budget import BudgetError, Ledger, require_scope_budget
+
+    cfg, pricing = BudgetConfig.load(), Pricing.load()
+    assert cfg.scope_budget_eur == 10.0
+    ledger = Ledger.load(tmp_path / "l.json")
+    stills = build_plan(ep, pricing, profile="final", stills_only=True)
+    require_paid_scope(cfg, stills)
+    assert with_margin(stills.total_eur(pricing, cfg), cfg) <= 10.0
+    require_scope_budget(cfg, ledger, stills.total_eur(pricing, cfg))
+    with pytest.raises(BudgetError, match="Kein bezahlter Lauf"):
+        require_scope_budget(cfg, ledger, build_plan(ep, pricing, profile="final").total_eur(pricing, cfg))
+    old = load_episode(ROOT / "episodes" / "etage-0" / "ep01-der-verbotene-knopf")
+    with pytest.raises(ApprovalError, match="etage-0-der-verbotene-knopf"):
+        require_paid_scope(cfg, build_plan(old, pricing, profile="final"))
 
 
 # ----------------------------------------------------------------- Untertitel / Einblendungen

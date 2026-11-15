@@ -14,7 +14,12 @@
 # 15.11.2026 (dritter PR): wieder false. Das Testvideo ist gerendert (Lauf 43724968662) und wurde NICHT
 # abgenommen. Für die Serienfassung (episodes/etage-0/s01e01-der-verbotene-knopf) gilt: zuerst Drehbuch,
 # Storyboard und kostenlose Vorschau freigeben – erst dann per eigenem PR Umfang und Budget neu festlegen.
-paid_rendering_enabled: false
+# 15.11.2026 (vierter PR): true NUR für die Bild-Storyboard-Stufe von ETAGE 0 – S01E01 (Standbildfilm mit
+# echten Bildern, Stimmen, Klangflächen und Geräuschen, im Workflow stills_only anhaken). Geschichte und
+# Storyboard sind freigegeben. Höchstens 10 € inkl. Sicherheitsreserve (paid_scope.budget_eur) – der
+# bewegte Film (ca. 40 € inkl. Reserve) passt nicht in diesen Rahmen und wird im Preflight verweigert.
+# Der Render startet erst mit der Bestätigungsphrase im Workflow. Nach der Abnahme wieder auf false.
+paid_rendering_enabled: true
 
 # Freigabeumfang: Nur diese Profile/Szenen/Tonquellen dürfen bezahlt gerendert
 # werden. Alles andere bricht im Preflight ab, BEVOR Geld fließt – egal was im
@@ -24,10 +29,10 @@ paid_scope:
   # final = gen4.5 + gen4_image (Veröffentlichungsqualität). Erlaubt, weil unten
   # elevenlabs.require_commercial_license: true gilt (bezahlter Tarif wird vor dem Lauf geprüft).
   profiles: [final]
-  scenes: [S01, S02, S03, S04, S05]
+  scenes: [all]
   audio_providers: [elevenlabs]
   # Nur diese Episode(n) dürfen bezahlt laufen – alle anderen brechen im Preflight ab.
-  episodes: [etage-0-der-verbotene-knopf]
+  episodes: [etage-0-s01e01-der-verbotene-knopf]
   # Obergrenze für ALLE bezahlten Läufe dieser Episode(n) zusammen (verbucht + reserviert + neuer Lauf
   # inkl. 25 % Puffer). Ein zweiter Lauf, der darüber käme, wird verweigert.
   budget_eur: 10.00
