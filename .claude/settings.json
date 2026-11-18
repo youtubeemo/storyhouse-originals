@@ -1,0 +1,38 @@
+{
+  "extraKnownMarketplaces": {
+    "claude-plugins-official": {
+      "source": {
+        "source": "github",
+        "repo": "anthropics/claude-plugins-official"
+      }
+    },
+    "ponytail": {
+      "source": {
+        "source": "github",
+        "repo": "DietrichGebert/ponytail",
+        "ref": "96608e078b2d5ea607c5c3b8b5a54d1c1fba6846"
+      }
+    },
+    "lemolab": {
+      "source": {
+        "source": "github",
+        "repo": "lemomo-ai/lemo-opuscar",
+        "ref": "00a7f9ec99c8686265a8ca4ed9a3fdaaf27ea6f4"
+      }
+    },
+    "taste-skill": {
+      "source": {
+        "source": "github",
+        "repo": "Leonxlnx/taste-skill",
+        "ref": "f6b76575f949707b4e3c37cd86cb44b0b98643e8"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "superpowers@claude-plugins-official": true,
+    "mattpocock-skills@claude-plugins-official": true,
+    "ponytail@ponytail": true,
+    "lemo-opuscar@lemolab": true,
+    "taste-skill@taste-skill": true
+  }
+}
